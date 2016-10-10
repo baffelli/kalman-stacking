@@ -1,0 +1,64 @@
+{
+    "style":    "/home/baffelli/PhD/trunk/Code/pyrat/pyrat/rcfiles/paper_rc.rc",
+	"project_name": "2015_GPRI_Dom",
+	"datetime":  "20160914_145059",
+	"range_compression":	{
+			"rmin":		50,
+			"rmax":		3000,
+			"dec":		10,
+			"k":		5,
+			"z":		300,
+			"decimated_sample_spacing":		0.1
+	},
+	"list_of_reflectors": [
+		{"ridx":32, "azidx":5192,"type":"cubic", "side":0.4},
+		{"ridx":830, "azidx":3503,"type":"triangular", "side":0.4},
+		{"ridx":1032, "azidx":5703,"type":"cubic", "side":0.4},
+		{"ridx":1051, "azidx":5617,"type":"triangular", "side":0.4},
+		{"ridx":1331, "azidx":1490,"type":"cubic", "side":0.4},
+		{"ridx":3518, "azidx":3545,"type":"triangular", "side":0.4}
+							],
+	"crosspolarizer_index": [3409, 2790, "o"],
+    "channel_mapping":{
+              "TX_A_position": 0,
+              "TX_B_position": 0.125,
+              "RX_Au_position": 0.475,
+              "RX_Bu_position": 0.6,
+              "RX_Al_position": 0.725,
+              "RX_Bl_position": 0.85 },
+	"desquint":				{
+			"AAA_squint_rate":	4.21e-9,
+			"BBB_squint_rate":	3.92e-9,
+			"BAA_squint_rate":	3.9e-9,
+			"ABB_squint_rate":	3.9e-9,
+			"AAA_center_squint": 1,
+			"BBB_center_squint": 1,
+			"BAA_center_squint": 1,
+			"ABB_center_squint": 1
+	},
+	"phase_correction":		{
+			"integration_length":	0.6,
+			"AAA_phase_center_offset": 0.02,
+			"BBB_phase_center_offset": -0.12,
+			"ABB_phase_center_offset": -0.12,
+			"BAA_phase_center_offset": -0.12
+	},
+	"interferogram":		{
+		"rlks":	"1",
+		"azlks": "1"
+	},
+	"squint_rate":			{
+			"rwin":		5,
+			"azwin":	250
+	},
+	"calibration":			{
+			"reflector_index":		1,
+			"correct_HV":           "False"
+	},
+	"geocoding":			{
+			"scan_heading":	"56",
+			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
+			"ref_mli_par"   : "slc_corr/20160914_145059_AAAl.slc_dec.par",
+			"table_name" 	: "Chutzen"
+	}
+}
