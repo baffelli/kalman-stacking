@@ -68,6 +68,22 @@ rule all:
 
 
 
+##############################################################################
+## Correct squint
+rule correct_squint_in_slc:
+		input:
+			slc = "slc_chan/{dataname}_{chan,[A-B]{3}}{rx}.slc",
+			slc_par = "slc_chan/{dataname}_{chan,[A-B]{3}}{rx}.slc.par",
+		output:
+			corr =  "slc_desq/{dataname}_{chan,[A-B]{3}}{rx}.slc",
+			corr_par = "slc_desq/{dataname}_{chan,[A-B]{3}}{rx}.slc.par"
+		params:
+			squint_rate = lambda wildcards: config["desquint"]["{chan}_squint_rate".format(chan=wildcards.chan)],
+		run:
+			slc = gpf.gammaDataset(input.slc_par, input.slc)
+			raw_desq = gpf.correct_squint_in_SLC(slc, squint_rate=params.squint_rate)
+			slc.tofile(output.corr_par, output.corr)
+
 
 #Do not need to perform RC if the data comes from the server
 ruleorder: untar_and_copy > range_compression
