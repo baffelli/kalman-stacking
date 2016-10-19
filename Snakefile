@@ -27,13 +27,22 @@ def valid_dates_on_server(start_dt, stop_dt):
     valid_dates = select_date_range(all_dates[0], start_dt, stop_dt)
     return valid_dates
 
-def all_ifgrams(wildcards):
+def all_diff(wildcards):
     valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.int', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
+    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.diff', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
     return ifgrams
+
+def all_aps(wildcards):
+    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
+    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.aps', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
+    return ifgrams
+
 
 def plist(wildcards):
     return expand('ipt/{start_dt}_{stop_dt}_{chan}.plist',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
+
+def msr(wildcards):
+    return expand('ipt/{start_dt}_{stop_dt}_{chan}.msr',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
 
 
 def all_slcs(wildcards):
@@ -57,19 +66,20 @@ def wildcards_formatter(input_string, wildcards):
 
 
 include: pyrat.rules['raw_to_slc']
-
+include: pyrat.rules['geocoding']
 
 rule all:
     input:
 #       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int.pdf',
-       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int',
-       'list_of_slcs.csv'
+       'stack/20150803_060019_20150803_063519_AAAl.hdf',
+        'list_of_slcs.csv'
 
 
 
 
 ##############################################################################
 ## Correct squint
+ruleorder: correct_squint_in_slc > range_compression
 rule correct_squint_in_slc:
 		input:
 			slc = "slc_chan/{dataname}_{chan,[A-B]{3}}{rx}.slc",
@@ -84,6 +94,40 @@ rule correct_squint_in_slc:
 			raw_desq = gpf.correct_squint_in_SLC(slc, squint_rate=params.squint_rate)
 			slc.tofile(output.corr_par, output.corr)
 
+
+
+#Convert shape file to tif containing the area to mask
+rule shapefile_to_raster:
+    input:
+        mask = 'geo/swissTLM3D-2016-tlm_gelaendename_Clip',
+        dem = 'geo/swissALTI3D_2016_Clip.tif'
+    output:
+        mask = 'geo/bisgletscher_mask.tif'
+    script:
+        'scripts/shapefile_to_raster.py'
+
+
+#Segment the mask so that it only covers
+#the extent covered by DEM
+rule segment_mask:
+    input:
+        mask = 'geo/bisgletscher_mask.tif',
+        dem_seg_par = 'geo/' + config['geocoding']['table_name'] + '.dem_seg.par'
+    output:
+        mask = 'geo/bisgletscher_mask_seg.tif',
+        mask_bmp = 'geo/bisgletscher_mask_seg.bmp'
+    script:
+        'scripts/segment_mask.py'
+
+
+rule glacier_mask:
+    input:
+        mli_ref_par = 'geo/' + config['geocoding']['table_name'] + '.dem_seg.par',
+        mask = 'geo/bisgletscher_mask_seg.bmp_fgc'
+    output:
+        mask = 'geo/bisgletscher_mask.bmp'
+    run:
+        shell('cp {input.mask} {output.mask}')
 
 #Do not need to perform RC if the data comes from the server
 ruleorder: untar_and_copy > range_compression
@@ -144,7 +188,7 @@ rule ave_pwr:
 rule ptarg_screen:
     output:
          msr = 'ipt/{start_dt}_{stop_dt}_{chan}.msr',
-         plist = 'ipt/{start_dt}_{stop_dt}_{chan}.plist',
+         mean = 'ipt/{start_dt}_{stop_dt}_{chan}.mean',
     wildcard_constraints:
         start_dt = dt_regex,
         stop_dt = dt_regex,
@@ -152,9 +196,11 @@ rule ptarg_screen:
          tab = 'tab/{start_dt}_{stop_dt}_{chan}.slc_tab',
          ave_pwr = 'mli/{start_dt}_{stop_dt}_{chan}.ave_pwr'
     run:
+        import pyrat.fileutils.gpri_files as gpf
         with open(input.tab) as tab:
             slc, slc_par = tab.readline().replace('\n','').split('\t')
-        stat_cmd = "pwr_stat {{input.tab}} {slc_par} {{output.msr}} {{output.plist}} - - - - - -".format(slc_par = slc_par)
+        width = gpf.par_to_dict(slc_par)['range_samples']
+        stat_cmd = "temp_lin_var {{input.tab}} {{output.mean}} {{output.msr}} {width} - - - - - -".format(width = width)
         shell(stat_cmd)
 
 ruleorder: mli > multi_look
@@ -177,16 +223,55 @@ rule cc:
         ifgram_par = 'diff/{mastername}_{slavename}.int_par',
         mli1  = 'mli/{mastername}.mli',
         mli2  = 'mli/{slavename}.mli',
+        mli1_par  = 'mli/{mastername}.mli.par',
     output:
-        cc = 'diff/{mastername}_{slavename}.int',
+        cc = 'diff/{mastername}_{slavename}.cc',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
     run:
-       import pyrat.fileuitls.gpri_files as gpf
+       import pyrat.fileutils.gpri_files as gpf
+       wd = gpf.par_to_dict(input.mli1_par)['range_samples']
+       cc_cmd = "cc_wave {{input.ifgram}} {{input.mli1}} {{input.mli2}} {{output.cc}} {wd} - - 0".format(wd=wd)
+       shell(cc_cmd)
 
+rule cc_mask:
+    output:
+        cc_mask = 'diff/{mastername}_{slavename}.cc_mask.bmp',
+    input:
+        cc =  'diff/{mastername}_{slavename}.cc',
+        pwr = 'mli/{mastername}.mli',
+        mli_par = 'mli/{mastername}.mli.par',
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    run:
+       import pyrat.fileutils.gpri_files as gpf
+       wd = gpf.par_to_dict(input.mli_par)['range_samples']
+       mask_cmd = "rascc_mask {{input.cc}} {{input.pwr}} {wd} - - - - - 0.5 0.01 - - - - - {{output.cc_mask}}".format(wd=wd)
+       shell(mask_cmd)
 
+#Invert a mask
+rule invert_mask:
+    input:
+        mask = "{name}_mask.bmp"
+    output:
+        mask_inv = "{name}_mask_inv.bmp"
+    run:
+        print(wildcards)
+        shell('mask_op {input.mask} {input.mask} {output.mask_inv} 2')
 
+rule glacier_validity_mask:
+    input:
+        cc_mask = 'diff/{mastername}_{slavename}.cc_mask.bmp',
+        glacier_mask = 'geo/bisgletscher_mask.bmp',
+    output:
+        validity_mask = 'diff/{mastername}_{slavename}.unw_mask.bmp'
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    run:
+        shell("mask_op {input.cc_mask} {input.glacier_mask} {output.validity_mask} 0")
 
 rule ifgram:
     input:
@@ -217,6 +302,74 @@ rule ifgram:
         gpf.dict_to_par(int_par, output.int_par)
 
 
+#Compute the atmospheric phase screen for an image
+rule aps:
+    output:
+        int_unw= temp('diff/{mastername}_{slavename}.int_unw'),
+        aps = 'diff/{mastername}_{slavename}.aps',
+        int_filt = temp('diff/{mastername}_{slavename}.int_filt'),
+        int_mask = temp('diff/{mastername}_{slavename}.int_masked')
+    input:
+        ifgram = 'diff/{mastername}_{slavename}.int',
+        ifgram_par = 'diff/{mastername}_{slavename}.int_par',
+        mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
+        mli_par = 'mli/{mastername}.mli.par',
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    params:
+        aps_window = 200,
+        filter_type = 2
+    run:
+        import pyrat.fileutils.gpri_files as gpf
+        wd = gpf.par_to_dict(input.mli_par)['range_samples']
+        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
+        shell(mask_cmd)
+        filt_cmd = "fspf {{output.int_mask}} {{output.int_filt}} {wd} 0 {{params.aps_window}} {{params.filter_type}} {{input.mli_par}}".format(wd=wd)
+        shell(filt_cmd)
+        mcf_cmd = "mcf {{output.int_filt}} - {{input.mask}} {{output.int_unw}} {wd} - - - - - - - - - - 0 ".format(wd=wd)
+        shell(mcf_cmd)
+        #interpolate
+        interp_cmd = "interp_ad {{output.int_unw}} {{output.aps}} {wd} 300 150 200  {{params.filter_type}} 2".format(wd=wd)
+        shell(interp_cmd)
+
+rule glacier_only:
+
+
+rule cleanup_diff:
+    run:
+        shell('rm diff/*.aps')
+        shell('rm diff/*.diff*')
+        shell('rm diff/*cc_mask*')
+        shell('rm diff/*unw_mask*')
+
+
+
+#Remove the aps from the interferogram
+rule diff_ifgram:
+    output:
+        diff_int = 'diff/{mastername}_{slavename}.diff',
+        diff_par = 'diff/{mastername}_{slavename}.diff_par',
+    input:
+        aps = 'diff/{mastername}_{slavename}.aps',
+        int = 'diff/{mastername}_{slavename}.int',
+        mli1_par = "mli/{mastername}.mli.par",
+        mli2_par=  "mli/{slavename}.mli.par",
+        mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    run:
+        a = 4
+        shell("create_diff_par {input.mli1_par} {input.mli2_par} {output.diff_par} 1 0")
+        shell("quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0 ")
+        shell("sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 1 0")
+        par1 = gpf.par_to_dict(input.mli1_par)
+        par2 = gpf.par_to_dict(input.mli2_par)
+        int_par = gpf.par_to_dict(output.diff_par)
+        bl = par2['center_time'][0] - par1['center_time'][0]
+        int_par['temporal_baseline'] = [bl, 's']
+        gpf.dict_to_par(int_par, output.diff_par)
 
 
 
@@ -224,7 +377,7 @@ rule create_baselines:
     output:
         baselines =  'outputs/{start_dt}_{stop_dt}_{chan}.csv'
     input:
-        ifgrams = all_ifgrams,
+        ifgrams = all_diff,
     run:
         import re
         import csv
@@ -240,74 +393,52 @@ rule create_baselines:
                 write.writerow(out_str)
 
 
+
+
+
 rule stacking:
     output:
-        avg_ifgram  = 'stack/{start_dt}_{stop_dt}_{chan}.int',
-        avg_ifgram_par  = 'stack/{start_dt}_{stop_dt}_{chan}.int_par',
+        avg_ifgram  = 'stack/{start_dt}_{stop_dt}_{chan}.diff',
+        avg_ifgram_par  = 'stack/{start_dt}_{stop_dt}_{chan}.diff_par',
     input:
-        ptarg_screen = plist,
-        ifgrams = all_ifgrams,
-        slc_list = 'list_of_slcs.csv'
+        ifgrams = all_diff,
+        mli = all_mli
+        slc_list = 'list_of_slcs.csv',
     wildcard_constraints:
         start_dt = dt_regex,
         stop_dt = dt_regex,
     params:
-        ridx = 1675,
-        azidx = 123,
+        ridx = 1173,
+        azidx = 112,
         ws = 8
-    run:
-        import pyrat.fileutils.gpri_files as gpf
-        import pyrat.visualization.visfun as vf
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import pyrat.core.corefun
-        ifgram = input.ifgrams[0]
-        par = ifgram + "_par"
-        current_if = gpf.gammaDataset(par, ifgram, dtype=gpf.type_mapping['FCOMPLEX'])
-        avg_if = np.zeros(current_if.shape,dtype=np.float)
-        avg_coh = np.zeros(current_if.shape,dtype=np.float)
-        dt_avg = 0
-        for ifgram in input.ifgrams:
-            par = ifgram + '_par'
-            current_if = gpf.gammaDataset(par, ifgram, dtype=gpf.type_mapping['FCOMPLEX'])
-#            current_if = cf.smooth(current_if, [3,1])
-            dt = current_if.temporal_baseline[0]
-            #extract phase of refernce region
-            ref_region = cf.window_idx(current_if, [params.ridx, params.azidx], [params.ws, params.ws])
-            ref_phase = np.mean(np.angle(current_if[ref_region]))
-            avg_if += np.angle(current_if * ref_phase.conj()) * dt
-            avg_coh += np.abs(current_if) * dt
-            dt_avg += dt
-        avg_coh /= dt_avg
-        avg_if /= dt_avg
-        avg_ifgram = avg_coh * np.exp(1j * avg_if)
-        #TODO fix write_dataset so that it ssaves the correct type
-        gpf.write_dataset(avg_ifgram.astype(gpf.type_mapping['FCOMPLEX']), current_if.__dict__, output.avg_ifgram_par, output.avg_ifgram)
+    script:
+        'scripts/stacking.py'
 
-rule compare_pol:
-    input:
-        avg_ifgram_1  = 'stack/{start_dt}_{stop_dt}_{chan1}.int',
-        avg_ifgram_2  = 'stack/{start_dt}_{stop_dt}_{chan2}.int',
-        avg_ifgram_1_par  = 'stack/{start_dt}_{stop_dt}_{chan1}.int_par',
-        avg_ifgram_2_par  = 'stack/{start_dt}_{stop_dt}_{chan2}.int_par',
-    output:
-        diff = 'outputs/{start_dt}_{stop_dt}_{chan1}_{chan2}.int',
-    wildcard_constraints:
-        start_dt = dt_regex,
-        stop_dt = dt_regex
-    run:
-        import pyrat.fileutils.gpri_files as gpf
-        import pyrat.visualization.visfun as vf
-        import numpy as np
-        import matplotlib.pyplot as plt
-        HH = gpf.gammaDataset(input.avg_ifgram_1_par, input.avg_ifgram_1, dtype=gpf.type_mapping['FCOMPLEX'])
-        VV = gpf.gammaDataset(input.avg_ifgram_2_par, input.avg_ifgram_2, dtype=gpf.type_mapping['FCOMPLEX'])
-        rgb_HH, norm, rest = vf.dismph(HH, sf = 1, k=0.7)
-        rgb_VV, norm, rest = vf.dismph(VV, sf = 1, k=0.7)
-        ax = plt.subplot(1,3,1)
-        plt.imshow(rgb_HH, aspect=1/10)
-        plt.subplot(1,3,2, sharex=ax, sharey=ax)
-        plt.imshow(rgb_VV,  aspect=1/10)
-        plt.subplot(1,3,3, sharex=ax, sharey=ax)
-        plt.imshow(np.angle(VV * HH.conj()), aspect=1/10, cmap='jet')
-        plt.show()
+#
+#rule compare_pol:
+#    input:
+#        avg_ifgram_1  = 'stack/{start_dt}_{stop_dt}_{chan1}.int',
+#        avg_ifgram_2  = 'stack/{start_dt}_{stop_dt}_{chan2}.int',
+#        avg_ifgram_1_par  = 'stack/{start_dt}_{stop_dt}_{chan1}.int_par',
+#        avg_ifgram_2_par  = 'stack/{start_dt}_{stop_dt}_{chan2}.int_par',
+#    output:
+#        diff = 'outputs/{start_dt}_{stop_dt}_{chan1}_{chan2}.int',
+#    wildcard_constraints:
+#        start_dt = dt_regex,
+#        stop_dt = dt_regex
+#    run:
+#        import pyrat.fileutils.gpri_files as gpf
+#        import pyrat.visualization.visfun as vf
+#        import numpy as np
+#        import matplotlib.pyplot as plt
+#        HH = gpf.gammaDataset(input.avg_ifgram_1_par, input.avg_ifgram_1, dtype=gpf.type_mapping['FCOMPLEX'])
+#        VV = gpf.gammaDataset(input.avg_ifgram_2_par, input.avg_ifgram_2, dtype=gpf.type_mapping['FCOMPLEX'])
+#        rgb_HH, norm, rest = vf.dismph(HH, sf = 1, k=0.7)
+#        rgb_VV, norm, rest = vf.dismph(VV, sf = 1, k=0.7)
+#        ax = plt.subplot(1,3,1)
+#        plt.imshow(rgb_HH, aspect=1/10)
+#        plt.subplot(1,3,2, sharex=ax, sharey=ax)
+#        plt.imshow(rgb_VV,  aspect=1/10)
+#        plt.subplot(1,3,3, sharex=ax, sharey=ax)
+#        plt.imshow(np.angle(VV * HH.conj()), aspect=1/10, cmap='jet')
+#        plt.show()

@@ -56,9 +56,9 @@
 			"correct_HV":           "False"
 	},
 	"geocoding":			{
-			"scan_heading":	"56",
+			"scan_heading":	"220",
 			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
-			"ref_mli_par"   : "slc_corr/20160914_145059_AAAl.slc_dec.par",
-			"table_name" 	: "Chutzen"
+			"ref_mli_par"   : "mli/20150803_060749_AAAl.mli.par",
+			"table_name" 	: "Dom"
 	}
 }
