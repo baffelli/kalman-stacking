@@ -71,7 +71,7 @@ include: pyrat.rules['geocoding']
 rule all:
     input:
 #       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int.pdf',
-       'stack/20150803_060019_20150803_063519_AAAl.hdf',
+       'stack/20150803_060019_20150803_063519_AAAl.diff',
         'list_of_slcs.csv'
 
 
@@ -333,7 +333,6 @@ rule aps:
         interp_cmd = "interp_ad {{output.int_unw}} {{output.aps}} {wd} 300 150 200  {{params.filter_type}} 2".format(wd=wd)
         shell(interp_cmd)
 
-rule glacier_only:
 
 
 rule cleanup_diff:
@@ -353,6 +352,7 @@ rule diff_ifgram:
     input:
         aps = 'diff/{mastername}_{slavename}.aps',
         int = 'diff/{mastername}_{slavename}.int',
+        int_par = 'diff/{mastername}_{slavename}.int_par',
         mli1_par = "mli/{mastername}.mli.par",
         mli2_par=  "mli/{slavename}.mli.par",
         mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
@@ -360,16 +360,30 @@ rule diff_ifgram:
         mastername=slc_regex,
         slavename=slc_regex,
     run:
-        a = 4
-        shell("create_diff_par {input.mli1_par} {input.mli2_par} {output.diff_par} 1 0")
-        shell("quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0 ")
-        shell("sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 1 0")
-        par1 = gpf.par_to_dict(input.mli1_par)
-        par2 = gpf.par_to_dict(input.mli2_par)
-        int_par = gpf.par_to_dict(output.diff_par)
-        bl = par2['center_time'][0] - par1['center_time'][0]
-        int_par['temporal_baseline'] = [bl, 's']
-        gpf.dict_to_par(int_par, output.diff_par)
+        import pyrat.interferogramStack as stack
+        import pyrat.fileutils.gpri_files as gpf
+        import numpy as np
+#        shell("create_diff_par {input.mli1_par} {input.mli2_par} {output.diff_par} 1 0")
+#        shell("sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 1 0")
+        ifgram = stack.Interferogram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
+        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
+        print(ifgram.shape)
+        print(aps.shape)
+        ifgram = ifgram * np.exp(1j * aps)
+        ifgram.to_file(output.diff_par, output.diff_int)
+#        par1 = gpf.par_to_dict(input.mli1_par)
+#        par2 = gpf.par_to_dict(input.mli2_par)
+#        int_par = gpf.par_to_dict(output.diff_par)
+#        bl = par2['center_time'][0] - par1['center_time'][0]
+#        int_par['temporal_baseline'] = [bl, 's']
+#        int_par['master_par'] = input.mli1_par
+#        int_par['slave_par'] = input.mli2_par
+#        GPRI_prop = ["near_range_slc", "GPRI_az_start_angle", "GPRI_az_angle_step", "range_pixel_spacing", "azimuth_line_time",
+#              "prf", "GPRI_ref_north",  "GPRI_ref_east", "GPRI_ref_alt", "GPRI_geoid"]
+#        for name in GPRI_prop:
+#            int_par[name] = par1[name]
+#        gpf.dict_to_par(int_par, output.diff_par)
+
 
 
 
@@ -402,7 +416,7 @@ rule stacking:
         avg_ifgram_par  = 'stack/{start_dt}_{stop_dt}_{chan}.diff_par',
     input:
         ifgrams = all_diff,
-        mli = all_mli
+        mli = all_mli,
         slc_list = 'list_of_slcs.csv',
     wildcard_constraints:
         start_dt = dt_regex,
