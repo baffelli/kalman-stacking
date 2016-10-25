@@ -366,9 +366,9 @@ rule diff_ifgram:
 #        shell("create_diff_par {input.mli1_par} {input.mli2_par} {output.diff_par} 1 0")
 #        shell("sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 1 0")
         ifgram = intgram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
-        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
-        ifgram = ifgram * np.exp(1j * aps)
-        print(dir(ifgram))
+#        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
+#        ifgram = np.exp(1j * np.array(aps)) * ifgram
+        print(type(ifgram))
         ifgram.tofile(output.diff_par, output.diff_int)
 #        par1 = gpf.par_to_dict(input.mli1_par)
 #        par2 = gpf.par_to_dict(input.mli2_par)
