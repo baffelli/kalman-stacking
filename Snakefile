@@ -297,8 +297,8 @@ rule ifgram:
         par1 = gpf.par_to_dict(input.master_par)
         par2 = gpf.par_to_dict(input.slave_par)
         int_par = gpf.par_to_dict(output.int_par)
-        bl = par2['center_time'][0] - par1['center_time'][0]
-        int_par['temporal_baseline'] = [bl, 's']
+        bl = par2['center_time'] - par1['center_time']
+        int_par.add_parameter('temporal_baseline', bl, unit='s')
         gpf.dict_to_par(int_par, output.int_par)
 
 
@@ -360,16 +360,15 @@ rule diff_ifgram:
         mastername=slc_regex,
         slavename=slc_regex,
     run:
-        import pyrat.interferogramStack as stack
+        from pyrat.diff.core import Interferogram as intgram
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
 #        shell("create_diff_par {input.mli1_par} {input.mli2_par} {output.diff_par} 1 0")
 #        shell("sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 1 0")
-        ifgram = stack.Interferogram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
+        ifgram = intgram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
         aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
-        print(ifgram.shape)
-        print(aps.shape)
         ifgram = ifgram * np.exp(1j * aps)
+        print(dir(ifgram))
         ifgram.tofile(output.diff_par, output.diff_int)
 #        par1 = gpf.par_to_dict(input.mli1_par)
 #        par2 = gpf.par_to_dict(input.mli2_par)
