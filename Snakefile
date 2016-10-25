@@ -370,7 +370,7 @@ rule diff_ifgram:
         print(ifgram.shape)
         print(aps.shape)
         ifgram = ifgram * np.exp(1j * aps)
-        ifgram.to_file(output.diff_par, output.diff_int)
+        ifgram.tofile(output.diff_par, output.diff_int)
 #        par1 = gpf.par_to_dict(input.mli1_par)
 #        par2 = gpf.par_to_dict(input.mli2_par)
 #        int_par = gpf.par_to_dict(output.diff_par)

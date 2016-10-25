@@ -12,12 +12,10 @@ def shapefile_to_raster(inputs, outputs, threads, config, params, wildcards):
 
     #Select only desired feature
     outline = ogr.Open(inputs.mask)
-    print(outline)
+
     outline_layer = outline.GetLayer()
     outline_layer.SetAttributeFilter("NAME = '{name}'".format(name=feature_name))
-    for feature in outline_layer:
-        print(feature.GetField("UUID"))
-    print(outline_layer)
+
     x_min, x_max, y_min, y_max = outline_layer.GetExtent()
 
     #Set the out raster
@@ -29,7 +27,6 @@ def shapefile_to_raster(inputs, outputs, threads, config, params, wildcards):
     band.Fill(255)
     gdal.RasterizeLayer(goal_raster,[1], outline_layer, burn_values=[0] )
     array = band.ReadAsArray()
-    print(array)
 
 shapefile_to_raster(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,
               snakemake.wildcards)
