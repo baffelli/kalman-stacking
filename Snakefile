@@ -368,7 +368,6 @@ rule diff_ifgram:
         ifgram = intgram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
 #        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
 #        ifgram = np.exp(1j * np.array(aps)) * ifgram
-        print(type(ifgram))
         ifgram.tofile(output.diff_par, output.diff_int)
 #        par1 = gpf.par_to_dict(input.mli1_par)
 #        par2 = gpf.par_to_dict(input.mli2_par)
