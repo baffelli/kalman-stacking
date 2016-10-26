@@ -70,7 +70,7 @@ include: pyrat.rules['geocoding']
 
 rule all:
     input:
-        "geo/bisgletscher_shadow_layover.bmp",
+        "geo/Dom.sh_map_fgc",
 #       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int.pdf',
 #       expand('diff/20150803_060519_AAAl_20150803_060749_AAAl.{ext}_gc.tif',ext=['diff','int']),
         'list_of_slcs.csv'
