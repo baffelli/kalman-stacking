@@ -70,8 +70,9 @@ include: pyrat.rules['geocoding']
 
 rule all:
     input:
+        "geo/bisgletscher_shadow_layover.bmp",
 #       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int.pdf',
-       'stack/20150803_060019_20150803_063519_AAAl.diff',
+#       expand('diff/20150803_060519_AAAl_20150803_060749_AAAl.{ext}_gc.tif',ext=['diff','int']),
         'list_of_slcs.csv'
 
 
@@ -261,6 +262,16 @@ rule invert_mask:
         print(wildcards)
         shell('mask_op {input.mask} {input.mask} {output.mask_inv} 2')
 
+#Convert a layover/shadow map into a bitmap
+rule ls_map_bmp:
+    input:
+        mask = 'geo/' + config['geocoding']['table_name'] + '.sh_map_fgc',
+        ref_mli_par = config['geocoding']['ref_mli_par']
+    output:
+        bmp_mask = "geo/bisgletscher_shadow_layover.bmp"
+    script:
+        'scripts/layover_shadow_as_bmp.py'
+
 rule glacier_validity_mask:
     input:
         cc_mask = 'diff/{mastername}_{slavename}.cc_mask.bmp',
@@ -318,8 +329,8 @@ rule aps:
         mastername=slc_regex,
         slavename=slc_regex,
     params:
-        aps_window = 200,
-        filter_type = 2
+        aps_window = 100,
+        filter_type = 1
     run:
         import pyrat.fileutils.gpri_files as gpf
         wd = gpf.par_to_dict(input.mli_par)['range_samples']
@@ -363,11 +374,9 @@ rule diff_ifgram:
         from pyrat.diff.core import Interferogram as intgram
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
-#        shell("create_diff_par {input.mli1_par} {input.mli2_par} {output.diff_par} 1 0")
-#        shell("sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 1 0")
         ifgram = intgram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
-#        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
-#        ifgram = np.exp(1j * np.array(aps)) * ifgram
+        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
+        ifgram = np.exp(-1j * np.array(aps)) * ifgram
         ifgram.tofile(output.diff_par, output.diff_int)
 #        par1 = gpf.par_to_dict(input.mli1_par)
 #        par2 = gpf.par_to_dict(input.mli2_par)
@@ -383,6 +392,17 @@ rule diff_ifgram:
 #        gpf.dict_to_par(int_par, output.diff_par)
 
 
+
+#Projects a single corrected interferogram to a map
+rule diff_to_map:
+    output:
+        map = 'outputs/{filename}.diff.pdf'
+    input:
+        diff = 'diff/{filename}.diff_gc.tif',
+        basemap = 'geo/pk25krel_latest_Clip.tif',
+        mask = 'geo/swissTLM3D-2016-tlm_gelaendename_Clip',
+    script:
+        'scripts/overlay_displacement_on_map.py'
 
 
 rule create_baselines:
