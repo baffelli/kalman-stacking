@@ -72,7 +72,7 @@ rule all:
     input:
         "geo/Dom.sh_map_fgc",
 #       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int.pdf',
-#       expand('diff/20150803_060519_AAAl_20150803_060749_AAAl.{ext}_gc.tif',ext=['diff','int']),
+        expand('stack/20150803_060519_AAAl_20150803_060749_AAAl.{ext}_gc.tif',ext=['diff','int']),
         'list_of_slcs.csv'
 
 
@@ -329,19 +329,19 @@ rule aps:
         mastername=slc_regex,
         slavename=slc_regex,
     params:
-        aps_window = 100,
+        aps_window = 50,
         filter_type = 1
     run:
         import pyrat.fileutils.gpri_files as gpf
         wd = gpf.par_to_dict(input.mli_par)['range_samples']
         mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
         shell(mask_cmd)
-        filt_cmd = "fspf {{output.int_mask}} {{output.int_filt}} {wd} 0 {{params.aps_window}} {{params.filter_type}} {{input.mli_par}}".format(wd=wd)
+        filt_cmd = "fspf {{input.ifgram}} {{output.int_filt}} {wd} 0 {{params.aps_window}} {{params.filter_type}} {{input.mli_par}}".format(wd=wd)
         shell(filt_cmd)
         mcf_cmd = "mcf {{output.int_filt}} - {{input.mask}} {{output.int_unw}} {wd} - - - - - - - - - - 0 ".format(wd=wd)
         shell(mcf_cmd)
         #interpolate
-        interp_cmd = "interp_ad {{output.int_unw}} {{output.aps}} {wd} 300 150 200  {{params.filter_type}} 2".format(wd=wd)
+        interp_cmd = "interp_ad {{output.int_unw}} {{output.aps}} {wd} 300  150 200  {{params.filter_type}} 2".format(wd=wd)
         shell(interp_cmd)
 
 
