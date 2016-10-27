@@ -353,6 +353,10 @@ rule cleanup_diff:
         shell('rm diff/*cc_mask*')
         shell('rm diff/*unw_mask*')
 
+rule cleanup_geo:
+    run:
+        shell('rm geo/Dom*')
+        shell('rm geo/bisgletscher*')
 
 
 #Remove the aps from the interferogram

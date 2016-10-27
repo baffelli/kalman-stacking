@@ -59,6 +59,7 @@
 			"scan_heading":	"220",
 			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
 			"ref_mli_par"   : "mli/20150803_060749_AAAl.mli.par",
-			"table_name" 	: "Dom"
+			"table_name" 	: "Dom",
+			"refine_table"	: true
 	}
 }
