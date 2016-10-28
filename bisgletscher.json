@@ -45,7 +45,8 @@
 	},
 	"interferogram":		{
 		"rlks":	"3",
-		"azlks": "2"
+		"azlks": "2",
+		"reference_coordinate": 	[623756.4, 105691.6]
 	},
 	"squint_rate":			{
 			"rwin":		5,

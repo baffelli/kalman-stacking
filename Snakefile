@@ -70,9 +70,7 @@ include: pyrat.rules['geocoding']
 
 rule all:
     input:
-        "geo/Dom.sh_map_fgc",
-#       'outputs/20150803_060019_20150803_063519_AAAl_BBBl.int.pdf',
-        expand('stack/20150803_060519_AAAl_20150803_060749_AAAl.{ext}_gc.tif',ext=['diff','int']),
+        expand('stack/20150803_060519_20150803_063249_AAAl.diff',ext=['diff','int']),
         'list_of_slcs.csv'
 
 
@@ -120,7 +118,7 @@ rule segment_mask:
     script:
         'scripts/segment_mask.py'
 
-
+#Produce a mask of the glacier
 rule glacier_mask:
     input:
         mli_ref_par = 'geo/' + config['geocoding']['table_name'] + '.dem_seg.par',
@@ -129,6 +127,7 @@ rule glacier_mask:
         mask = 'geo/bisgletscher_mask.bmp'
     run:
         shell('cp {input.mask} {output.mask}')
+
 
 #Do not need to perform RC if the data comes from the server
 ruleorder: untar_and_copy > range_compression
@@ -316,7 +315,7 @@ rule ifgram:
 #Compute the atmospheric phase screen for an image
 rule aps:
     output:
-        int_unw= temp('diff/{mastername}_{slavename}.int_unw'),
+        aps_unw= 'diff/{mastername}_{slavename}.aps_unw',
         aps = 'diff/{mastername}_{slavename}.aps',
         int_filt = temp('diff/{mastername}_{slavename}.int_filt'),
         int_mask = temp('diff/{mastername}_{slavename}.int_masked')
@@ -338,10 +337,10 @@ rule aps:
         shell(mask_cmd)
         filt_cmd = "fspf {{input.ifgram}} {{output.int_filt}} {wd} 0 {{params.aps_window}} {{params.filter_type}} {{input.mli_par}}".format(wd=wd)
         shell(filt_cmd)
-        mcf_cmd = "mcf {{output.int_filt}} - {{input.mask}} {{output.int_unw}} {wd} - - - - - - - - - - 0 ".format(wd=wd)
+        mcf_cmd = "mcf {{output.int_filt}} - {{input.mask}} {{output.aps_unw}} {wd} - - - - - 1 1 - - - 0 ".format(wd=wd)
         shell(mcf_cmd)
         #interpolate
-        interp_cmd = "interp_ad {{output.int_unw}} {{output.aps}} {wd} 300  150 200  {{params.filter_type}} 2".format(wd=wd)
+        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 300  150 200  {{params.filter_type}} 2".format(wd=wd)
         shell(interp_cmd)
 
 
@@ -382,19 +381,6 @@ rule diff_ifgram:
         aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
         ifgram = np.exp(-1j * np.array(aps)) * ifgram
         ifgram.tofile(output.diff_par, output.diff_int)
-#        par1 = gpf.par_to_dict(input.mli1_par)
-#        par2 = gpf.par_to_dict(input.mli2_par)
-#        int_par = gpf.par_to_dict(output.diff_par)
-#        bl = par2['center_time'][0] - par1['center_time'][0]
-#        int_par['temporal_baseline'] = [bl, 's']
-#        int_par['master_par'] = input.mli1_par
-#        int_par['slave_par'] = input.mli2_par
-#        GPRI_prop = ["near_range_slc", "GPRI_az_start_angle", "GPRI_az_angle_step", "range_pixel_spacing", "azimuth_line_time",
-#              "prf", "GPRI_ref_north",  "GPRI_ref_east", "GPRI_ref_alt", "GPRI_geoid"]
-#        for name in GPRI_prop:
-#            int_par[name] = par1[name]
-#        gpf.dict_to_par(int_par, output.diff_par)
-
 
 
 #Projects a single corrected interferogram to a map
@@ -440,6 +426,8 @@ rule stacking:
         ifgrams = all_diff,
         mli = all_mli,
         slc_list = 'list_of_slcs.csv',
+        lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
+        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par'
     wildcard_constraints:
         start_dt = dt_regex,
         stop_dt = dt_regex,
