@@ -129,6 +129,25 @@ rule glacier_mask:
         shell('cp {input.mask} {output.mask}')
 
 
+#Compute position of reference point
+rule reference_coordinate:
+    input:
+        conf = 'bisgletscher.json',
+        dem_par = 'geo/' + config['geocoding']['table_name'] + '.dem_seg.par',
+        lut = 'geo/' + config['geocoding']['table_name'] + '.gpri_to_dem',
+    output:
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '_reference_pos.csv',
+    run:
+        import pyrat.geo.geofun as geo
+        import csv
+        table = geo.GeocodingTable(input.dem_par, input.lut)
+        radar_coord = table.geo_coord_to_radar_coord(config['interferogram']['reference_coordinate'])
+        with open(output.reference_coord, 'w+') as ouf:
+            writer = csv.writer(ouf)
+            writer.writerow(radar_coord)
+
+
+
 #Do not need to perform RC if the data comes from the server
 ruleorder: untar_and_copy > range_compression
 rule untar_and_copy:
@@ -289,9 +308,11 @@ rule ifgram:
         master_par = 'slc_corr/{mastername}.slc_dec.par',
         slave = 'slc_corr/{slavename}.slc_dec',
         slave_par = 'slc_corr/{slavename}.slc_dec.par',
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '_reference_pos.csv',
     output:
         int_par = 'diff/{mastername}_{slavename}.int_par',
-        ifgram = 'diff/{mastername}_{slavename}.int',
+        ifgram = temp('diff/{mastername}_{slavename}.int_unref'),
+        ifgram_ref = 'diff/{mastername}_{slavename}.int',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
@@ -301,16 +322,21 @@ rule ifgram:
         rlks = config['interferogram']['rlks'],
         azlks = config['interferogram']['azlks'],
     run:
+        import numpy as np
+        import pyrat.fileutils.gpri_files as gpf
+        import snakemake
         shell("create_offset {input.master_par} {input.slave_par} {output.int_par} - 2 1 0")
-        shell("SLC_intf {input.master} {input.slave} {input.master_par} {input.slave_par} {output.int_par} {output.ifgram} {params.rlks} {params.azlks} - - 0 0 1 - - - - -")
-        #Compute temporal baseline
-        par1 = gpf.par_to_dict(input.master_par)
-        par2 = gpf.par_to_dict(input.slave_par)
-        int_par = gpf.par_to_dict(output.int_par)
-        bl = par2['center_time'] - par1['center_time']
-        int_par.add_parameter('temporal_baseline', bl, unit='s')
-        gpf.dict_to_par(int_par, output.int_par)
-
+        shell(
+        "SLC_intf {input.master} {input.slave} {input.master_par} {input.slave_par} {output.int_par} {output.ifgram} {params.rlks} {params.azlks} - - 0 0 1 - - - - -")
+        ifgram_par = gpf.par_to_dict(output.int_par)
+        # Load reference coord
+        ref_coord = np.genfromtxt(input.reference_coord, delimiter=',')
+        print(ref_coord)
+        # referencing
+        ref_cmd = "cpx_math {{output.ifgram}} - {{output.ifgram_ref}} {wd} 0 {ridx} {azidx} {nr} {naz} - - - 1".format(
+        ridx=ref_coord[0], azidx=ref_coord[1], nr=config['interferogram']['reference_region_size'][0],
+        naz=config['interferogram']['reference_region_size'][1], wd=ifgram_par.interferogram_width)
+        shell(ref_cmd)
 
 #Compute the atmospheric phase screen for an image
 rule aps:
@@ -318,17 +344,17 @@ rule aps:
         aps_unw= 'diff/{mastername}_{slavename}.aps_unw',
         aps = 'diff/{mastername}_{slavename}.aps',
         int_filt = temp('diff/{mastername}_{slavename}.int_filt'),
-        int_mask = temp('diff/{mastername}_{slavename}.int_masked')
+        int_mask = temp('diff/{mastername}_{slavename}.int_masked'),
     input:
         ifgram = 'diff/{mastername}_{slavename}.int',
-        ifgram_par = 'diff/{mastername}_{slavename}.int_par',
+        int_par = 'diff/{mastername}_{slavename}.int_par',
         mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
         mli_par = 'mli/{mastername}.mli.par',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
     params:
-        aps_window = 50,
+        aps_window = 100,
         filter_type = 1
     run:
         import pyrat.fileutils.gpri_files as gpf
@@ -340,9 +366,8 @@ rule aps:
         mcf_cmd = "mcf {{output.int_filt}} - {{input.mask}} {{output.aps_unw}} {wd} - - - - - 1 1 - - - 0 ".format(wd=wd)
         shell(mcf_cmd)
         #interpolate
-        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 300  150 200  {{params.filter_type}} 2".format(wd=wd)
+        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 20  20 20 {{params.filter_type}} 2".format(wd=wd)
         shell(interp_cmd)
-
 
 
 rule cleanup_diff:
@@ -374,11 +399,19 @@ rule diff_ifgram:
         mastername=slc_regex,
         slavename=slc_regex,
     run:
+#        #Create diff_par:
+        par_cmd = "create_diff_par {input.int_par} - {output.diff_par} 0 0"
+        shell(par_cmd)
+#        #Fit aps
+#        fit_cmd = "quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0"
+#        shell(fit_cmd)
+#        sub_cmd = "quad_sub {input.int} {output.diff_par} {output.diff_int} 1 0"
+#        shell(sub_cmd)
         from pyrat.diff.core import Interferogram as intgram
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
-        ifgram = intgram(input.int_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
-        aps = gpf.gammaDataset(input.int_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
+        ifgram = intgram(output.diff_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
+        aps = gpf.gammaDataset(output.diff_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
         ifgram = np.exp(-1j * np.array(aps)) * ifgram
         ifgram.tofile(output.diff_par, output.diff_int)
 
