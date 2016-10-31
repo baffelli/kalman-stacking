@@ -13,6 +13,7 @@ dt_regex = "(\d{8})_(\d{6})"
 dtfmt = "%Y%m%d_%H%M%S"
 wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
 
+
 def select_date_range(string_dates, date_start, date_end):
     dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
     dt_start = dt.datetime.strptime(date_start, dtfmt)
@@ -20,46 +21,112 @@ def select_date_range(string_dates, date_start, date_end):
     valid_dates = [date.strftime(dtfmt) for date in dates if dt_start < date < dt_end]
     return valid_dates
 
-def valid_dates_on_server(start_dt, stop_dt):
-    with open('list_of_slcs.csv', 'r') as f:
-        reader = csv.reader(f)
-        all_dates = list(reader)
-    valid_dates = select_date_range(all_dates[0], start_dt, stop_dt)
+def select_n_dates(string_dates, date_start, n_dates):
+    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
+    dt_start = dt.datetime.strptime(date_start, dtfmt)
+#    dt_end = dt.datetime.strptime(date_end, dtfmt)
+    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start < date][1:int(n_dates)]
     return valid_dates
 
-def all_diff(wildcards):
-    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.diff', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
-    return ifgrams
 
-def all_aps(wildcards):
-    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.aps', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
-    return ifgrams
-
-
-def plist(wildcards):
-    return expand('ipt/{start_dt}_{stop_dt}_{chan}.plist',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
-
-def msr(wildcards):
-    return expand('ipt/{start_dt}_{stop_dt}_{chan}.msr',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
-
-
-def all_slcs(wildcards):
-    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-    slcs = expand('slc_corr/{vd1}_{chan}.slc_dec', chan=wildcards.chan, vd1=valid_dates)
-    return slcs
-
-def all_mli(wildcards):
-    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-    mlis = expand('mli/{vd1}_{chan}.mli', chan=wildcards.chan, vd1=valid_dates)
-    return mlis
+class StackHelper:
+    def __init__(self, list_of_slcs, step=1, stride=1, window=1):
+#    """
+#        step : int
+#            step between master and slave slc
+#        stride : int
+#            increment of master index
+#        window: int
+#            the slave interferogram counter is incremented between n_master + 1 and n_master + 1 + window with step size stride
+#    """
+        with open('list_of_slcs.csv', 'r') as f:#the object contains a list of valid slcs
+            reader = csv.reader(f)
+            self.all_dates = list(reader)[0]
+        self.step = step
+        self.stride = stride
+        self.window = window
 
 
-def wildcards_formatter(input_string, wildcards):
-    wildcard_names = re.match(wildcard_re, str)
-    input_string_no_dot = re.sub(wildcard_re, "\<g>wildcard_name")
-    print(input_string_no_dot)
+    def itab(self, n_slc):
+        tab = []
+        for image_counter, idx_master in enumerate(range(1, n_slc, self.step)):
+            for idx_slave in range(idx_master + 1, idx_master+1+self.window, self.stride):
+                if idx_slave < n_slc:
+                    tab.append([idx_master, idx_slave, image_counter, 1 ])
+        return tab
+
+#    def slc_tab(self, )
+
+
+    def valid_dates(self, wildcards):
+        return select_date_range(self.all_dates, wildcards.start_dt, wildcards.stop_dt)
+
+    def valid_dates_n(self, wildcards):
+        return select_n_dates(self.all_dates, wildcards.start_dt, wildcards.nifgrams)
+
+    def all_diff(self, wildcards):
+        valid_dates = self.valid_dates_n(wildcards)
+        itab = self.itab(len(valid_dates))
+        diffs = []
+        for idx_master, idx_slave, *rest in itab:
+            current = 'diff/{master}_{chan}_{slave}_{chan}.diff'.format(master=valid_dates[idx_master], slave=valid_dates[idx_slave], chan=wildcards.chan, type=type)
+            diffs.append(current)
+        return diffs
+
+
+    def all_mli(self, wildcards):
+        return self.all_type(wildcards, 'mli')
+
+
+    def create_itab(self, output_name):
+        with open(output_name, 'w+') as of:
+            for line in self.itab:
+                of.write(map(str, line))
+
+
+#    def diff(wildcards)
+
+
+
+
+
+#    def all_combinations(self, wildcards, ext):
+#        #First, find all valid dates
+#        valid_dates = self.valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
+#        ifgrams = []
+#        for vd_master in valid_dates:
+#
+#        ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.{{ext}}', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
+#        return ifgrams
+
+#def all_aps(wildcards):
+#    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
+#    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.aps', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
+#    return ifgrams
+#
+#
+#def plist(wildcards):
+#    return expand('ipt/{start_dt}_{stop_dt}_{chan}.plist',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
+#
+#def msr(wildcards):
+#    return expand('ipt/{start_dt}_{stop_dt}_{chan}.msr',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
+#
+#
+#def all_slcs(wildcards):
+#    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
+#    slcs = expand('slc_corr/{vd1}_{chan}.slc_dec', chan=wildcards.chan, vd1=valid_dates)
+#    return slcs
+
+#def all_mli(wildcards):
+#    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
+#    mlis = expand('mli/{vd1}_{chan}.mli', chan=wildcards.chan, vd1=valid_dates)
+#    return mlis
+
+#
+#def wildcards_formatter(input_string, wildcards):
+#    wildcard_names = re.match(wildcard_re, str)
+#    input_string_no_dot = re.sub(wildcard_re, "\<g>wildcard_name")
+#    print(input_string_no_dot)
 
 
 
@@ -68,9 +135,13 @@ def wildcards_formatter(input_string, wildcards):
 include: pyrat.rules['raw_to_slc']
 include: pyrat.rules['geocoding']
 
+
+#Initialize stack
+stack = StackHelper('list_of_slcs.csv')
+
 rule all:
     input:
-        expand('stack/20150803_060519_20150803_063249_AAAl.diff',ext=['diff','int']),
+        expand('stack/20150803_060519_n_50_AAAl.diff',ext=['diff','int']),
         'list_of_slcs.csv'
 
 
@@ -170,19 +241,19 @@ rule get_list_of_all_slcs:
             writer = csv.writer(of)
             writer.writerows(slcs)
 
-#Write slc_tab file
-rule tab:
-    output:
-        'tab/{start_dt}_{stop_dt}_{chan}.slc_tab',
-    input:
-        all_mli
-    wildcard_constraints:
-        start_dt = dt_regex,
-        stop_dt = dt_regex,
-    run:
-        with open(output[0],'w') as ptab:
-            for slc in input:
-                ptab.write(slc + '\t' + slc + '.par\n')
+##Write slc_tab file
+#rule tab:
+#    output:
+#        'tab/{start_dt}_{stop_dt}_{chan}.slc_tab',
+#    input:
+#        all_mli
+#    wildcard_constraints:
+#        start_dt = dt_regex,
+#        stop_dt = dt_regex,
+#    run:
+#        with open(output[0],'w') as ptab:
+#            for slc in input:
+#                ptab.write(slc + '\t' + slc + '.par\n')
 
 #Average power
 rule ave_pwr:
@@ -203,30 +274,13 @@ rule ave_pwr:
         shell(ave_cmd)
 
 
-#create candidate point target list
-rule ptarg_screen:
-    output:
-         msr = 'ipt/{start_dt}_{stop_dt}_{chan}.msr',
-         mean = 'ipt/{start_dt}_{stop_dt}_{chan}.mean',
-    wildcard_constraints:
-        start_dt = dt_regex,
-        stop_dt = dt_regex,
-    input:
-         tab = 'tab/{start_dt}_{stop_dt}_{chan}.slc_tab',
-         ave_pwr = 'mli/{start_dt}_{stop_dt}_{chan}.ave_pwr'
-    run:
-        import pyrat.fileutils.gpri_files as gpf
-        with open(input.tab) as tab:
-            slc, slc_par = tab.readline().replace('\n','').split('\t')
-        width = gpf.par_to_dict(slc_par)['range_samples']
-        stat_cmd = "temp_lin_var {{input.tab}} {{output.mean}} {{output.msr}} {width} - - - - - -".format(width = width)
-        shell(stat_cmd)
+
 
 ruleorder: mli > multi_look
 rule mli:
     input:
-        slc = 'slc_corr/{slcname}.slc_dec',
-        slc_par = 'slc_corr/{slcname}.slc_dec.par'
+        slc = 'slc_desq/{slcname}.slc_dec',
+        slc_par = 'slc_desq/{slcname}.slc_dec.par'
     output:
         mli = 'mli/{slcname}.mli',
         mli_par = 'mli/{slcname}.mli.par'
@@ -234,7 +288,7 @@ rule mli:
         rlks = config['interferogram']['rlks'],
         azlks = config['interferogram']['azlks'],
     run:
-        shell('multi_look {input.slc} {input.slc_par} {output.mli} {output.mli_par} {params.rlks} {params.azlks}')
+        shell('multi_look {input.slc} {input.slc_par} {output.mli} {output.mli_par} {params.rlks} {params.azlks} - -')
 
 rule cc:
     input:
@@ -304,10 +358,10 @@ rule glacier_validity_mask:
 
 rule ifgram:
     input:
-        master = 'slc_corr/{mastername}.slc_dec',
-        master_par = 'slc_corr/{mastername}.slc_dec.par',
-        slave = 'slc_corr/{slavename}.slc_dec',
-        slave_par = 'slc_corr/{slavename}.slc_dec.par',
+        master = 'slc_desq/{mastername}.slc_dec',
+        master_par = 'slc_desq/{mastername}.slc_dec.par',
+        slave = 'slc_desq/{slavename}.slc_dec',
+        slave_par = 'slc_desq/{slavename}.slc_dec.par',
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '_reference_pos.csv',
     output:
         int_par = 'diff/{mastername}_{slavename}.int_par',
@@ -361,12 +415,12 @@ rule aps:
         wd = gpf.par_to_dict(input.mli_par)['range_samples']
         mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
         shell(mask_cmd)
-        filt_cmd = "fspf {{input.ifgram}} {{output.int_filt}} {wd} 0 {{params.aps_window}} {{params.filter_type}} {{input.mli_par}}".format(wd=wd)
+        filt_cmd = "fspf {{output.int_mask}} {{output.int_filt}} {wd} 0 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
         shell(filt_cmd)
-        mcf_cmd = "mcf {{output.int_filt}} - {{input.mask}} {{output.aps_unw}} {wd} - - - - - 1 1 - - - 0 ".format(wd=wd)
+        mcf_cmd = "mcf {{output.int_filt}} - - {{output.aps_unw}} {wd} - - - - - 1 1 - - - 0 ".format(wd=wd)
         shell(mcf_cmd)
         #interpolate
-        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 20  20 20 {{params.filter_type}} 2".format(wd=wd)
+        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 250 10 250 3 2".format(wd=wd)
         shell(interp_cmd)
 
 
@@ -402,11 +456,6 @@ rule diff_ifgram:
 #        #Create diff_par:
         par_cmd = "create_diff_par {input.int_par} - {output.diff_par} 0 0"
         shell(par_cmd)
-#        #Fit aps
-#        fit_cmd = "quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0"
-#        shell(fit_cmd)
-#        sub_cmd = "quad_sub {input.int} {output.diff_par} {output.diff_int} 1 0"
-#        shell(sub_cmd)
         from pyrat.diff.core import Interferogram as intgram
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
@@ -428,42 +477,22 @@ rule diff_to_map:
         'scripts/overlay_displacement_on_map.py'
 
 
-rule create_baselines:
-    output:
-        baselines =  'outputs/{start_dt}_{stop_dt}_{chan}.csv'
-    input:
-        ifgrams = all_diff,
-    run:
-        import re
-        import csv
-        par_str = "slc_corr/{slcname}.slc.par"
-        with open(output.baselines) as of:
-            writer= csv.writer(of)
-            for ifgram in ifgrams:
-                slc_1, slc_2 = re.split(slc_regex, ifgram)
-                par1 = gpf.par_to_dict(str.format(slc_1))
-                par2 = gpf.par_to_dict(par_str.format(slc_2))
-                bl = par1['center_time'][1] - par1['center_time'][0]
-                out_str = [slc_1, slc_2, bl]
-                write.writerow(out_str)
-
-
 
 
 
 rule stacking:
     output:
-        avg_ifgram  = 'stack/{start_dt}_{stop_dt}_{chan}.diff',
-        avg_ifgram_par  = 'stack/{start_dt}_{stop_dt}_{chan}.diff_par',
+        avg_ifgram  = 'stack/{start_dt}_n_{nifgrams}_{chan}.diff',
+        avg_ifgram_par  = 'stack/{start_dt}_n_{nifgrams}_{chan}.diff_par',
     input:
-        ifgrams = all_diff,
-        mli = all_mli,
+        ifgrams = stack.all_diff,
+#        mli = stack.all_mli,
         slc_list = 'list_of_slcs.csv',
         lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
         dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par'
     wildcard_constraints:
         start_dt = dt_regex,
-        stop_dt = dt_regex,
+#        stop_dt = dt_regex,
     params:
         ridx = 1173,
         azidx = 112,
@@ -471,31 +500,4 @@ rule stacking:
     script:
         'scripts/stacking.py'
 
-#
-#rule compare_pol:
-#    input:
-#        avg_ifgram_1  = 'stack/{start_dt}_{stop_dt}_{chan1}.int',
-#        avg_ifgram_2  = 'stack/{start_dt}_{stop_dt}_{chan2}.int',
-#        avg_ifgram_1_par  = 'stack/{start_dt}_{stop_dt}_{chan1}.int_par',
-#        avg_ifgram_2_par  = 'stack/{start_dt}_{stop_dt}_{chan2}.int_par',
-#    output:
-#        diff = 'outputs/{start_dt}_{stop_dt}_{chan1}_{chan2}.int',
-#    wildcard_constraints:
-#        start_dt = dt_regex,
-#        stop_dt = dt_regex
-#    run:
-#        import pyrat.fileutils.gpri_files as gpf
-#        import pyrat.visualization.visfun as vf
-#        import numpy as np
-#        import matplotlib.pyplot as plt
-#        HH = gpf.gammaDataset(input.avg_ifgram_1_par, input.avg_ifgram_1, dtype=gpf.type_mapping['FCOMPLEX'])
-#        VV = gpf.gammaDataset(input.avg_ifgram_2_par, input.avg_ifgram_2, dtype=gpf.type_mapping['FCOMPLEX'])
-#        rgb_HH, norm, rest = vf.dismph(HH, sf = 1, k=0.7)
-#        rgb_VV, norm, rest = vf.dismph(VV, sf = 1, k=0.7)
-#        ax = plt.subplot(1,3,1)
-#        plt.imshow(rgb_HH, aspect=1/10)
-#        plt.subplot(1,3,2, sharex=ax, sharey=ax)
-#        plt.imshow(rgb_VV,  aspect=1/10)
-#        plt.subplot(1,3,3, sharex=ax, sharey=ax)
-#        plt.imshow(np.angle(VV * HH.conj()), aspect=1/10, cmap='jet')
-#        plt.show()
+
