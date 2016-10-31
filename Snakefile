@@ -489,7 +489,8 @@ rule stacking:
 #        mli = stack.all_mli,
         slc_list = 'list_of_slcs.csv',
         lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
-        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par'
+        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
+        map = 'geo/pk25krel_latest_Clip_24bt.tif_fgc'
     wildcard_constraints:
         start_dt = dt_regex,
 #        stop_dt = dt_regex,

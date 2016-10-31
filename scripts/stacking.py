@@ -10,6 +10,8 @@ import pyrat.core.corefun as cf
 import pyrat.diff.core as diff
 import pyrat.diff.intfun as intfun
 import pandas as pd
+import matplotlib.gridspec as gridspec
+import datetime as dt
 
 
 # import pyrat.stacks as stacks
@@ -37,7 +39,8 @@ def stack(inputs, outputs, threads, config, params, wildcards):
 
     ph_rate = np.zeros(ifgram.shape, dtype=np.complex64)
     tb = [x.master_par.start_time - x.slave_par.start_time for x in stack]
-    moving_windows = cf.moving_window(stack, n=15)
+    ws = 20
+    moving_windows = cf.moving_window(stack, n=ws)
     mean = []
     variance = []
     time = []
@@ -49,17 +52,27 @@ def stack(inputs, outputs, threads, config, params, wildcards):
             baseline = interferogram.master_par.start_time - interferogram.slave_par.start_time
             current_stack.append(interferogram)
             current_baseline.append(baseline)
-            current_time.append( interferogram.master_par.start_time)
+            master_time = dt.datetime.combine(interferogram.master_par.date, dt.time(0,0,0)) +  dt.timedelta(seconds=interferogram.master_par.start_time)
+            current_time.append(master_time)
         current_stack = np.dstack(current_stack)
         #Compute mean and variance inside the window
-        mean.append(np.average(current_stack,axis=-1))
-        variance.append(np.var(np.angle(current_stack),axis=-1))
-        time.append(np.mean(current_time))
+        current_mean = np.average(current_stack,axis=-1, weights=current_baseline)
+        mean.append(current_mean)
+        variance.append(np.average((np.angle(current_stack) - current_mean[:,:,None])**2, weights=current_baseline,axis=-1))
+        time.append(current_time[len(current_time)//2])
         # print(current_stack.shape)
     variance = np.dstack(variance)
     mean = np.dstack(mean)
-    print(mean.shape)
-    plt.plot(time, np.angle(mean[stable_cood]))
+    point_variance = (variance[stable_cood])
+    point_mean = np.angle(mean[stable_cood])
+    gs = gridspec.GridSpec(2, 2)
+    plot_ax = plt.subplot(gs[0,::])
+    plot_ax.plot(time, point_mean)
+    plt.fill_between(time, point_mean - point_variance, point_mean + point_variance, alpha=0.5)
+    disp_ax = plt.subplot(gs[1::,0])
+    rgb, norm, pal = vf.dismph(mean[:,:,0])
+    disp_ax.imshow(rgb)
+    disp_ax.plot(stable_cood[1], stable_cood[0], 'ro')
     plt.show()
 
 stack(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,
