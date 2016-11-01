@@ -4,6 +4,8 @@ import datetime as dt
 import csv
 import re
 provider = RemoteProvider(port=22,username="baffelli", private_key="/home/baffelli/.ssh/id_rsa")
+slcs, = provider.glob_wildcards("ifu-eo-srv-1.ethz.ch/local/unique_data/2015_GPRI_Dom/raw/20150803_{time}.tar")
+
 
 
 configfile: './bisgletscher.json'
