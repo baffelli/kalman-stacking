@@ -5,7 +5,6 @@ import csv
 import re
 provider = RemoteProvider(port=22,username="baffelli", private_key="/home/baffelli/.ssh/id_rsa")
 
-#tar = provider.glob_wildcards("ifu-eo-srv-1.ethz.ch/local/unique_data/2015_GPRI_Dom/raw/{date,20150803}_{time,06\d+}.tar")
 
 configfile: './bisgletscher.json'
 slc_regex = "(\d{8})_(\d{6})((_[A-B]{3}[l-u]))?"
@@ -39,7 +38,7 @@ class StackHelper:
 #        window: int
 #            the slave interferogram counter is incremented between n_master + 1 and n_master + 1 + window with step size stride
 #    """
-        with open('list_of_slcs.csv', 'r') as f:#the object contains a list of valid slcs
+        with open(list_of_slcs, 'r') as f:#the object contains a list of valid slcs
             reader = csv.reader(f)
             self.all_dates = list(reader)[0]
         self.step = step
@@ -141,8 +140,8 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('stack/20150803_060519_n_50_AAAl.diff',ext=['diff','int']),
-        'list_of_slcs.csv'
+        expand('stack/20150803_060519_n_100_AAAl.diff',ext=['diff','int']),
+#        'list_of_slcs.csv'
 
 
 
@@ -217,6 +216,7 @@ rule reference_coordinate:
             writer = csv.writer(ouf)
             writer.writerow(radar_coord)
 
+#Geocode map to radar coordinates (does not work using geocode)
 
 
 #Do not need to perform RC if the data comes from the server
@@ -236,24 +236,11 @@ rule get_list_of_all_slcs:
     output:
         'list_of_slcs.csv'
     run:
+        print('doing')
         slcs = provider.glob_wildcards("ifu-eo-srv-1.ethz.ch/local/unique_data/2015_GPRI_Dom/raw/{slcname}.tar")
         with open(output[0], 'w+') as of:
             writer = csv.writer(of)
             writer.writerows(slcs)
-
-##Write slc_tab file
-#rule tab:
-#    output:
-#        'tab/{start_dt}_{stop_dt}_{chan}.slc_tab',
-#    input:
-#        all_mli
-#    wildcard_constraints:
-#        start_dt = dt_regex,
-#        stop_dt = dt_regex,
-#    run:
-#        with open(output[0],'w') as ptab:
-#            for slc in input:
-#                ptab.write(slc + '\t' + slc + '.par\n')
 
 #Average power
 rule ave_pwr:
@@ -292,13 +279,13 @@ rule mli:
 
 rule cc:
     input:
-        ifgram = 'diff/{mastername}_{slavename}.int',
-        ifgram_par = 'diff/{mastername}_{slavename}.int_par',
+        ifgram = 'int/{mastername}_{slavename}.int',
+        ifgram_par = 'int/{mastername}_{slavename}.int_par',
         mli1  = 'mli/{mastername}.mli',
         mli2  = 'mli/{slavename}.mli',
         mli1_par  = 'mli/{mastername}.mli.par',
     output:
-        cc = 'diff/{mastername}_{slavename}.cc',
+        cc = 'int/{mastername}_{slavename}.cc',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
@@ -312,7 +299,7 @@ rule cc_mask:
     output:
         cc_mask = 'diff/{mastername}_{slavename}.cc_mask.bmp',
     input:
-        cc =  'diff/{mastername}_{slavename}.cc',
+        cc =  'int/{mastername}_{slavename}.cc',
         pwr = 'mli/{mastername}.mli',
         mli_par = 'mli/{mastername}.mli.par',
     wildcard_constraints:
@@ -321,7 +308,7 @@ rule cc_mask:
     run:
        import pyrat.fileutils.gpri_files as gpf
        wd = gpf.par_to_dict(input.mli_par)['range_samples']
-       mask_cmd = "rascc_mask {{input.cc}} {{input.pwr}} {wd} - - - - - 0.5 0.01 - - - - - {{output.cc_mask}}".format(wd=wd)
+       mask_cmd = "rascc_mask {{input.cc}} {{input.pwr}} {wd} - - - - - 0.3 0.001 - - - - - {{output.cc_mask}}".format(wd=wd)
        shell(mask_cmd)
 
 #Invert a mask
@@ -364,9 +351,9 @@ rule ifgram:
         slave_par = 'slc_desq/{slavename}.slc_dec.par',
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '_reference_pos.csv',
     output:
-        int_par = 'diff/{mastername}_{slavename}.int_par',
-        ifgram = temp('diff/{mastername}_{slavename}.int_unref'),
-        ifgram_ref = 'diff/{mastername}_{slavename}.int',
+        int_par = 'int/{mastername}_{slavename}.int_par',
+        ifgram = temp('int/{mastername}_{slavename}.int_unref'),
+        ifgram_ref = 'int/{mastername}_{slavename}.int',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
@@ -392,45 +379,100 @@ rule ifgram:
         naz=config['interferogram']['reference_region_size'][1], wd=ifgram_par.interferogram_width)
         shell(ref_cmd)
 
+
+#Compute unwrapped interferogram
+rule unwrap:
+    input:
+        ifgram = 'int/{mastername}_{slavename}.int',
+        int_par = 'int/{mastername}_{slavename}.int_par',
+        mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
+        cc_mask = "diff/{mastername}_{slavename}.cc_mask.bmp",
+        cc = "int/{mastername}_{slavename}.cc",
+        mli_par = 'mli/{mastername}.mli.par',
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '_reference_pos.csv',
+    output:
+        unw = 'diff/{mastername}_{slavename}.unw',
+    params:
+        mode = config['interferogram']['triangulation_mode']
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    run:
+        import pyrat.fileutils.gpri_files as gpf
+        import numpy as np
+        #read location of reference point
+        ref_coord = np.genfromtxt(input.reference_coord, delimiter=',')
+        #get width of data
+        wd = gpf.par_to_dict(input.mli_par)['range_samples']
+        #unwrap data
+        mcf_cmd = "mcf {{input.ifgram}} {{input.cc}} {{input.cc_mask}} {{output.unw}} {wd} {{params.mode}} - - - - 1 1 - {ridx} {azidx} 1 ".format(wd=wd, ridx=ref_coord[0], azidx=ref_coord[1])
+        shell(mcf_cmd)
+
+
 #Compute the atmospheric phase screen for an image
 rule aps:
     output:
-        aps_unw= 'diff/{mastername}_{slavename}.aps_unw',
+#        aps_unw= 'diff/{mastername}_{slavename}.aps_unw',
         aps = 'diff/{mastername}_{slavename}.aps',
-        int_filt = temp('diff/{mastername}_{slavename}.int_filt'),
-        int_mask = temp('diff/{mastername}_{slavename}.int_masked'),
+#        aps_masked = temp('diff/{mastername}_{slavename}.aps.masked'),
+##        int_filt = temp('diff/{mastername}_{slavename}.int_filt'),
+        int_interp = temp('diff/{mastername}_{slavename}.unw.interp'),
+#        int_unw = temp('diff/{mastername}_{slavename}.unw'),
     input:
-        ifgram = 'diff/{mastername}_{slavename}.int',
-        int_par = 'diff/{mastername}_{slavename}.int_par',
+        ifgram = 'diff/{mastername}_{slavename}.unw',
+        int_par = 'int/{mastername}_{slavename}.int_par',
         mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
+        cc_mask = "diff/{mastername}_{slavename}.cc_mask.bmp",
+        cc = "int/{mastername}_{slavename}.cc",
         mli_par = 'mli/{mastername}.mli.par',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
     params:
         aps_window = 100,
-        filter_type = 1
+        filter_type = 1,
     run:
         import pyrat.fileutils.gpri_files as gpf
+        import numpy as np
         wd = gpf.par_to_dict(input.mli_par)['range_samples']
-        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
-        shell(mask_cmd)
-        filt_cmd = "fspf {{output.int_mask}} {{output.int_filt}} {wd} 0 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
-        shell(filt_cmd)
-        mcf_cmd = "mcf {{output.int_filt}} - - {{output.aps_unw}} {wd} - - - - - 1 1 - - - 0 ".format(wd=wd)
-        shell(mcf_cmd)
-        #interpolate
-        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 250 10 250 3 2".format(wd=wd)
+        #Close holes
+        interp_cmd = "interp_ad {{input.ifgram}} {{output.int_interp}} {wd} 100 10 100 3 2".format(wd=wd)
         shell(interp_cmd)
-
+        #low_pass filter
+        filt_cmd = "fspf {{output.int_interp}} {{output.aps}} {wd} 2 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
+        shell(filt_cmd)
+#        #load reference coordinate
+#        ref_coord = np.genfromtxt(input.reference_coord, delimiter=',')
+#        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
+#        shell(mask_cmd)
+#        filt_cmd = "fspf {{output.int_mask}} {{output.int_filt}} {wd} 0 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
+#        shell(filt_cmd)
+#        mcf_cmd = "mcf {{output.int_filt}} - - {{output.aps_unw}} {wd} - - - - - 1 1 - {ridx} {azidx} 1 ".format(wd=wd, ridx=ref_coord[0], azidx=ref_coord[1])
+#        shell(mcf_cmd)
+#        #interpolate
+#        interp_cmd = "interp_ad {{output.aps_unw}} {{output.aps}} {wd} 250 10 250 3 2".format(wd=wd)
+#        shell(interp_cmd)
+#        #Unwrap
+#        mcf_cmd = "mcf {{input.ifgram}} {{input.cc}} {{input.cc_mask}} {{output.int_unw}} {wd} - - - - - 1 1 - {ridx} {azidx} 1 ".format(wd=wd, ridx=ref_coord[0], azidx=ref_coord[1])
+#        shell(mcf_cmd)
+#        #Mask out moving areas
+#        mask_cmd = "mask_data {{output.int_unw}} {wd} {{output.int_mask}} {{input.mask}} 0".format(wd=wd)
+#        shell(mask_cmd)
+#        #Filter
+#        filt_cmd = "fspf {{output.int_unw}} {{output.aps_masked}} {wd} 2 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
+#        shell(filt_cmd)
+#        #Close holes
+#        interp_cmd = "interp_ad {{output.aps_masked}} {{output.aps}} {wd} 250 10 250 3 2".format(wd=wd)
+#        shell(interp_cmd)
 
 rule cleanup_diff:
     run:
+        shell('rm diff/*.int*')
         shell('rm diff/*.aps')
         shell('rm diff/*.diff*')
         shell('rm diff/*cc_mask*')
         shell('rm diff/*unw_mask*')
-
+        shell('rm diff/*.unw')
 rule cleanup_geo:
     run:
         shell('rm geo/Dom*')
@@ -444,8 +486,8 @@ rule diff_ifgram:
         diff_par = 'diff/{mastername}_{slavename}.diff_par',
     input:
         aps = 'diff/{mastername}_{slavename}.aps',
-        int = 'diff/{mastername}_{slavename}.int',
-        int_par = 'diff/{mastername}_{slavename}.int_par',
+        int = 'diff/{mastername}_{slavename}.unw',
+        int_par = 'int/{mastername}_{slavename}.int_par',
         mli1_par = "mli/{mastername}.mli.par",
         mli2_par=  "mli/{slavename}.mli.par",
         mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
@@ -456,12 +498,18 @@ rule diff_ifgram:
 #        #Create diff_par:
         par_cmd = "create_diff_par {input.int_par} - {output.diff_par} 0 0"
         shell(par_cmd)
+        #Fit phase
+        fit_cmd = "quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0 "
+        shell(fit_cmd)
+        #Remove phase
+        sub_cmd = "quad_sub {input.int} {output.diff_par} {output.diff_int} 0"
+        shell(sub_cmd)
         from pyrat.diff.core import Interferogram as intgram
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
-        ifgram = intgram(output.diff_par, input.int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
-        aps = gpf.gammaDataset(output.diff_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
-        ifgram = np.exp(-1j * np.array(aps)) * ifgram
+        ifgram = intgram(output.diff_par, output.diff_int, master_par = input.mli1_par, slave_par = input.mli2_par, dtype=gpf.type_mapping['FCOMPLEX'])
+#        aps = gpf.gammaDataset(output.diff_par, input.aps, dtype=gpf.type_mapping['FLOAT'])
+#        ifgram = np.exp(-1j * np.array(aps)) * ifgram
         ifgram.tofile(output.diff_par, output.diff_int)
 
 
@@ -487,10 +535,9 @@ rule stacking:
     input:
         ifgrams = stack.all_diff,
 #        mli = stack.all_mli,
-        slc_list = 'list_of_slcs.csv',
+#        slc_list = 'list_of_slcs.csv',
         lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
         dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
-        map = 'geo/pk25krel_latest_Clip_24bt.tif_fgc'
     wildcard_constraints:
         start_dt = dt_regex,
 #        stop_dt = dt_regex,

@@ -30,16 +30,14 @@ def stack(inputs, outputs, threads, config, params, wildcards):
     stack = []
     #Create the stack
     for ifgram_path in inputs.ifgrams:
-        ifgram = diff.Interferogram(ifgram_path + '_par', ifgram_path, dtype=gpf.type_mapping['FCOMPLEX'])
+        ifgram = diff.Interferogram(ifgram_path + '_par', ifgram_path, dtype=gpf.type_mapping['FLOAT'])
         #reference
         ref_reg = cf.window_idx(ifgram, stable_cood, (16, 16))
-        ifgram *= np.exp(-1j * np.mean(np.angle(ifgram[ref_reg])))#reference to point
+        ifgram *= np.mean(ifgram[ref_reg])#reference to point
         stack.append(ifgram)
-
-
-    ph_rate = np.zeros(ifgram.shape, dtype=np.complex64)
-    tb = [x.master_par.start_time - x.slave_par.start_time for x in stack]
-    ws = 20
+    ph_rate = np.zeros(ifgram.shape, dtype=np.float)
+    # tb = [x.master_par.start_time - x.slave_par.start_time for x in stack]
+    ws = 10
     moving_windows = cf.moving_window(stack, n=ws)
     mean = []
     variance = []
@@ -49,29 +47,32 @@ def stack(inputs, outputs, threads, config, params, wildcards):
         current_baseline = []
         current_time = []
         for interferogram_index, interferogram in enumerate(window_files):
-            baseline = interferogram.master_par.start_time - interferogram.slave_par.start_time
+            baseline = interferogram.slave_par.start_time - interferogram.master_par.start_time
+            print("The current temporal baseline is {bl}".format(bl=baseline))
             current_stack.append(interferogram)
             current_baseline.append(baseline)
             master_time = dt.datetime.combine(interferogram.master_par.date, dt.time(0,0,0)) +  dt.timedelta(seconds=interferogram.master_par.start_time)
             current_time.append(master_time)
         current_stack = np.dstack(current_stack)
         #Compute mean and variance inside the window
-        current_mean = np.average(current_stack,axis=-1, weights=current_baseline)
+        weights = np.array(current_baseline)
+        weights[weights > 60*5] = 0
+        current_mean = np.average(current_stack,axis=-1, weights=weights)
         mean.append(current_mean)
-        variance.append(np.average((np.angle(current_stack) - current_mean[:,:,None])**2, weights=current_baseline,axis=-1))
+        variance.append(np.average((current_stack - current_mean[:,:,None])**2, weights=weights,axis=-1))
         time.append(current_time[len(current_time)//2])
         # print(current_stack.shape)
     variance = np.dstack(variance)
     mean = np.dstack(mean)
-    point_variance = (variance[stable_cood])
-    point_mean = np.angle(mean[stable_cood])
+    point_variance = variance[stable_cood]
+    point_mean = mean[stable_cood]
     gs = gridspec.GridSpec(2, 2)
     plot_ax = plt.subplot(gs[0,::])
     plot_ax.plot(time, point_mean)
-    plt.fill_between(time, point_mean - point_variance, point_mean + point_variance, alpha=0.5)
+    plt.fill_between(time, point_mean - point_variance**0.5, point_mean + point_variance**0.5, alpha=0.5)
     disp_ax = plt.subplot(gs[1::,0])
-    rgb, norm, pal = vf.dismph(mean[:,:,0])
-    disp_ax.imshow(rgb)
+    # rgb, norm, pal = vf.dismph(mean[:,:,0])
+    disp_ax.imshow(variance[:,:,5])
     disp_ax.plot(stable_cood[1], stable_cood[0], 'ro')
     plt.show()
 
