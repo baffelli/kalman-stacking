@@ -4,7 +4,6 @@ import datetime as dt
 import csv
 import re
 provider = RemoteProvider(port=22,username="baffelli", private_key="/home/baffelli/.ssh/id_rsa")
-slcs, = provider.glob_wildcards("ifu-eo-srv-1.ethz.ch/local/unique_data/2015_GPRI_Dom/raw/20150803_{time}.tar")
 
 
 
@@ -56,8 +55,6 @@ class StackHelper:
                     tab.append([idx_master, idx_slave, image_counter, 1 ])
         return tab
 
-#    def slc_tab(self, )
-
 
     def valid_dates(self, wildcards):
         return select_date_range(self.all_dates, wildcards.start_dt, wildcards.stop_dt)
@@ -65,69 +62,43 @@ class StackHelper:
     def valid_dates_n(self, wildcards):
         return select_n_dates(self.all_dates, wildcards.start_dt, wildcards.nifgrams)
 
-    def all_diff(self, wildcards):
+    def all_pattern(self, pattern, wildcards):
         valid_dates = self.valid_dates_n(wildcards)
         itab = self.itab(len(valid_dates))
         diffs = []
         for idx_master, idx_slave, *rest in itab:
-            current = 'diff/{master}_{chan}_{slave}_{chan}.diff'.format(master=valid_dates[idx_master], slave=valid_dates[idx_slave], chan=wildcards.chan, type=type)
+            current = pattern.format(master=valid_dates[idx_master], slave=valid_dates[idx_slave], chan=wildcards.chan, type=type)
             diffs.append(current)
         return diffs
 
+    def all_diff(self, wildcards):
+        return self.all_pattern('diff/{master}_{chan}_{slave}_{chan}.diff', wildcards)
 
-    def all_mli(self, wildcards):
-        return self.all_type(wildcards, 'mli')
+    def first_valid_mli_par(self, wildcards):
+        #"Return the first valid mli par from a list given the wildcards"
+        valid_dates = self.valid_dates_n(wildcards)
+        return 'mli/{date}_{chan}.mli.par'.format(date=valid_dates[0], chan=wildcards.chan)
 
 
-    def create_itab(self, output_name):
+    def all_single(self, pattern, wildcards):
+        valid_dates = self.valid_dates_n(wildcards)
+        files = expand(pattern, date=valid_dates, chan=wildcards.chan, ext=wildcards.ext, type=wildcards.type)
+        return files
+
+    def mli_inputs(self, wildcards):
+        return self.all_single('mli/{date}_{chan}.{ext}', wildcards)
+
+    def cc_inputs(self, wildcards):
+        return self.all_pattern('int/{master}_{chan}_{slave}_{chan}.cc', wildcards)
+
+    def create_itab(self, n_slc,output_name, ):
         with open(output_name, 'w+') as of:
-            for line in self.itab:
+            itab=self.itab(n_slc)
+            for line in itab:
                 of.write(map(str, line))
 
 
-#    def diff(wildcards)
 
-
-
-
-
-#    def all_combinations(self, wildcards, ext):
-#        #First, find all valid dates
-#        valid_dates = self.valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-#        ifgrams = []
-#        for vd_master in valid_dates:
-#
-#        ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.{{ext}}', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
-#        return ifgrams
-
-#def all_aps(wildcards):
-#    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-#    ifgrams = expand(expand('diff/{{vd1}}_{chan}_{{vd2}}_{chan}.aps', chan=wildcards.chan),zip, vd1=valid_dates, vd2=valid_dates[1::])
-#    return ifgrams
-#
-#
-#def plist(wildcards):
-#    return expand('ipt/{start_dt}_{stop_dt}_{chan}.plist',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
-#
-#def msr(wildcards):
-#    return expand('ipt/{start_dt}_{stop_dt}_{chan}.msr',start_dt=wildcards.start_dt, stop_dt=wildcards.stop_dt, chan=wildcards.chan)
-#
-#
-#def all_slcs(wildcards):
-#    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-#    slcs = expand('slc_corr/{vd1}_{chan}.slc_dec', chan=wildcards.chan, vd1=valid_dates)
-#    return slcs
-
-#def all_mli(wildcards):
-#    valid_dates = valid_dates_on_server(wildcards.start_dt, wildcards.stop_dt)
-#    mlis = expand('mli/{vd1}_{chan}.mli', chan=wildcards.chan, vd1=valid_dates)
-#    return mlis
-
-#
-#def wildcards_formatter(input_string, wildcards):
-#    wildcard_names = re.match(wildcard_re, str)
-#    input_string_no_dot = re.sub(wildcard_re, "\<g>wildcard_name")
-#    print(input_string_no_dot)
 
 
 
@@ -142,7 +113,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('stack/20150803_060519_n_100_AAAl.diff',ext=['diff','int']),
+        expand('stack/20150803_060519_stack_100_AAAl.{ext}',ext=['mli.ave_gc.tif', 'cc.ave_gc.tif']),
 #        'list_of_slcs.csv'
 
 
@@ -218,8 +189,6 @@ rule reference_coordinate:
             writer = csv.writer(ouf)
             writer.writerow(radar_coord)
 
-#Geocode map to radar coordinates (does not work using geocode)
-
 
 #Do not need to perform RC if the data comes from the server
 ruleorder: untar_and_copy > range_compression
@@ -244,25 +213,47 @@ rule get_list_of_all_slcs:
             writer = csv.writer(of)
             writer.writerows(slcs)
 
-#Average power
-rule ave_pwr:
+#Average power or coherence
+rule ave_power:
     output:
-        ave ='mli/{start_dt}_{stop_dt}_{chan}.ave_pwr'
+        ave ='stack/{start_dt}_stack_{nifgrams}_{chan}.mli.ave',
+        tab = 'stack/{start_dt}_stack_{nifgrams}_{chan}.mli.tab'
     input:
-        tab = 'tab/{start_dt}_{stop_dt}_{chan}.slc_tab',
+        tab = stack.mli_inputs,
+        mli_par = stack.first_valid_mli_par,
     wildcard_constraints:
         start_dt = dt_regex,
-        stop_dt = dt_regex,
     run:
         import pyrat.fileutils.gpri_files as gpf
-        with open(input.tab) as tab:
-            mli, mli_par = tab.readline().replace('\n','').split('\t')
-            print(mli_par)
-        width = gpf.get_width(mli_par)
-        ave_cmd = "ave_image {{input.tab}} {width} {{output.ave}} - - - - 0".format(width=width)
+        with open(output.tab, 'w+') as tab:
+            for file in input.tab:
+                print(file)
+                tab.write(str(file) + '\n')
+            print(tab.readlines())
+        width = gpf.get_width(input.mli_par)
+        ave_cmd = "ave_image {{output.tab}} {width} {{output.ave}} - - - - 1".format(width=width)
         shell(ave_cmd)
 
-
+#Average power or coherence
+rule ave_cc:
+    output:
+        ave ='stack/{start_dt}_stack_{nifgrams}_{chan}.cc.ave',
+        tab = 'stack/{start_dt}_stack_{nifgrams}_{chan}.cc.tab'
+    input:
+        tab = stack.cc_inputs,
+        mli_par = stack.first_valid_mli_par,
+    wildcard_constraints:
+        start_dt = dt_regex,
+    run:
+        import pyrat.fileutils.gpri_files as gpf
+        with open(output.tab, 'w+') as tab:
+            for file in input.tab:
+                print(file)
+                tab.write(str(file) + '\n')
+            print(tab.readlines())
+        width = gpf.get_width(input.mli_par)
+        ave_cmd = "ave_image {{output.tab}} {width} {{output.ave}} - - - - 1".format(width=width)
+        shell(ave_cmd)
 
 
 ruleorder: mli > multi_look
@@ -279,6 +270,8 @@ rule mli:
     run:
         shell('multi_look {input.slc} {input.slc_par} {output.mli} {output.mli_par} {params.rlks} {params.azlks} - -')
 
+
+
 rule cc:
     input:
         ifgram = 'int/{mastername}_{slavename}.int',
@@ -291,26 +284,31 @@ rule cc:
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
+    params:
+        rlks = config['interferogram']['rlks'],
+        azlks = config['interferogram']['azlks']
     run:
        import pyrat.fileutils.gpri_files as gpf
        wd = gpf.par_to_dict(input.mli1_par)['range_samples']
-       cc_cmd = "cc_wave {{input.ifgram}} {{input.mli1}} {{input.mli2}} {{output.cc}} {wd} - - 0".format(wd=wd)
+       cc_cmd = "cc_wave {{input.ifgram}} {{input.mli1}} {{input.mli2}} {{output.cc}} {wd} {{params.rlks}} {{params.azlks}} 0".format(wd=wd)
        shell(cc_cmd)
 
 rule cc_mask:
     output:
         cc_mask = 'diff/{mastername}_{slavename}.cc_mask.bmp',
     input:
-        cc =  'int/{mastername}_{slavename}.cc',
+        cc =  'int/{mastername}_{slavename}.cc.sm',
         pwr = 'mli/{mastername}.mli',
         mli_par = 'mli/{mastername}.mli.par',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
+    params:
+        coherence_threshold = config['unwrapping']['coherence_threshold']
     run:
        import pyrat.fileutils.gpri_files as gpf
        wd = gpf.par_to_dict(input.mli_par)['range_samples']
-       mask_cmd = "rascc_mask {{input.cc}} {{input.pwr}} {wd} - - - - - 0.3 0.001 - - - - - {{output.cc_mask}}".format(wd=wd)
+       mask_cmd = "rascc_mask {{input.cc}} {{input.pwr}} {wd} - - - - - {{params.coherence_threshold}} - - - - - - {{output.cc_mask}}".format(wd=wd)
        shell(mask_cmd)
 
 #Invert a mask
@@ -345,6 +343,11 @@ rule glacier_validity_mask:
     run:
         shell("mask_op {input.cc_mask} {input.glacier_mask} {output.validity_mask} 0")
 
+
+
+
+
+
 rule ifgram:
     input:
         master = 'slc_desq/{mastername}.slc_dec',
@@ -368,10 +371,15 @@ rule ifgram:
         import numpy as np
         import pyrat.fileutils.gpri_files as gpf
         import snakemake
-        shell("create_offset {input.master_par} {input.slave_par} {output.int_par} - 2 1 0")
+        shell("create_offset {input.master_par} {input.slave_par} {output.int_par} - {params.rlks} {params.azlks} 0")
         shell(
-        "SLC_intf {input.master} {input.slave} {input.master_par} {input.slave_par} {output.int_par} {output.ifgram} {params.rlks} {params.azlks} - - 0 0 1 - - - - -")
+        "SLC_intf {input.master} {input.slave} {input.master_par} {input.slave_par} {output.int_par} {output.ifgram} {params.rlks} {params.azlks} - - 0 0 1 1 - - - -")
         ifgram_par = gpf.par_to_dict(output.int_par)
+        master_par = gpf.par_to_dict(input.master_par)
+        slave_par = gpf.par_to_dict(input.slave_par)
+        bl = master_par.start_time - slave_par.start_time
+        ifgram_par.add_parameter('temporal_baseline', bl, unit='s')
+        gpf.dict_to_par(ifgram_par, output.int_par)
         # Load reference coord
         ref_coord = np.genfromtxt(input.reference_coord, delimiter=',')
         print(ref_coord)
@@ -380,12 +388,29 @@ rule ifgram:
         ridx=ref_coord[0], azidx=ref_coord[1], nr=config['interferogram']['reference_region_size'][0],
         naz=config['interferogram']['reference_region_size'][1], wd=ifgram_par.interferogram_width)
         shell(ref_cmd)
+        print("Temporal baseline:{bl}".format(bl=bl))
 
+#Smooth interferogram
+rule adf:
+    input:
+        ifgram  = 'int/{mastername}_{slavename}.int',
+        mli_par = 'mli/{mastername}.mli.par',
+    output:
+        int_sm = 'int/{mastername}_{slavename}.int.sm',
+        cc = 'int/{mastername}_{slavename}.cc.sm',
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    run:
+        import pyrat.fileutils.gpri_files as gpf
+        wd = gpf.par_to_dict(input.mli_par)['range_samples']
+        adf_cmd = "adf {{input.ifgram}} {{output.int_sm}} {{output.cc}} {wd}".format(wd=wd)
+        shell(adf_cmd)
 
 #Compute unwrapped interferogram
 rule unwrap:
     input:
-        ifgram = 'int/{mastername}_{slavename}.int',
+        ifgram = 'int/{mastername}_{slavename}.int.sm',
         int_par = 'int/{mastername}_{slavename}.int_par',
         mask = "diff/{mastername}_{slavename}.unw_mask.bmp",
         cc_mask = "diff/{mastername}_{slavename}.cc_mask.bmp",
@@ -500,12 +525,14 @@ rule diff_ifgram:
 #        #Create diff_par:
         par_cmd = "create_diff_par {input.int_par} - {output.diff_par} 0 0"
         shell(par_cmd)
-        #Fit phase
-        fit_cmd = "quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0 "
-        shell(fit_cmd)
-        #Remove phase
-        sub_cmd = "quad_sub {input.int} {output.diff_par} {output.diff_int} 0"
+        #Subtract aps
+        sub_cmd = "sub_phase {input.int} {input.aps} {output.diff_par} {output.diff_int} 0 0"
         shell(sub_cmd)
+#        fit_cmd = "quad_fit {input.aps} {output.diff_par} - - {input.mask} - 0 "
+#        shell(fit_cmd)
+#        #Remove phase
+#        sub_cmd = "quad_sub {input.int} {output.diff_par} {output.diff_int} 0"
+#        shell(sub_cmd)
         from pyrat.diff.core import Interferogram as intgram
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
@@ -532,12 +559,10 @@ rule diff_to_map:
 
 rule stacking:
     output:
-        avg_ifgram  = 'stack/{start_dt}_n_{nifgrams}_{chan}.diff',
-        avg_ifgram_par  = 'stack/{start_dt}_n_{nifgrams}_{chan}.diff_par',
+        avg_ifgram  = 'stack/{start_dt}_stack_{nifgrams}_{chan}.diff',
+        avg_ifgram_par  = 'stack/{start_dt}_stack_{nifgrams}_{chan}.diff_par',
     input:
         ifgrams = stack.all_diff,
-#        mli = stack.all_mli,
-#        slc_list = 'list_of_slcs.csv',
         lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
         dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
     wildcard_constraints:

@@ -50,6 +50,10 @@
 		"reference_region_size":	[16,16],
 		"triangulation_mode":		0
 	},
+	"unwrapping":		{
+		"coherence_threshold":	0.6
+	},
+
 	"squint_rate":			{
 			"rwin":		5,
 			"azwin":	250
@@ -59,7 +63,7 @@
 			"correct_HV":           "False"
 	},
 	"geocoding":			{
-			"scan_heading":	"220",
+			"scan_heading":	220,
 			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
 			"ref_mli_par"   : "mli/20150803_060749_AAAl.mli.par",
 			"table_name" 	: "Dom",
