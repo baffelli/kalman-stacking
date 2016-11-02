@@ -134,7 +134,8 @@ rule correct_squint_in_slc:
 		run:
 			slc = gpf.gammaDataset(input.slc_par, input.slc)
 			raw_desq = gpf.correct_squint_in_SLC(slc, squint_rate=params.squint_rate)
-			slc.tofile(output.corr_par, output.corr)
+			print(type(raw_desq))
+			raw_desq.tofile(output.corr_par, output.corr)
 
 
 
