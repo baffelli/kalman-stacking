@@ -63,10 +63,10 @@
 			"correct_HV":           "False"
 	},
 	"geocoding":			{
-			"scan_heading":	220,
+			"scan_heading":	-276,
 			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
 			"ref_mli_par"   : "mli/20150803_060749_AAAl.mli.par",
 			"table_name" 	: "Dom",
-			"refine_table"	: true
+			"refine_table"	: false
 	}
 }
