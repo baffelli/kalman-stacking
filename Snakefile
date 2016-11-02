@@ -114,6 +114,8 @@ stack = StackHelper('list_of_slcs.csv')
 rule all:
     input:
         expand('stack/20150803_060519_stack_100_AAAl.{ext}',ext=['mli.ave_gc.tif', 'cc.ave_gc.tif']),
+        expand("diff/20150803_063249_AAAl_20150803_063519_AAAl.{ft}_gc.tif",ft=['unw','diff','aps'])
+
 #        'list_of_slcs.csv'
 
 

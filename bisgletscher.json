@@ -46,7 +46,7 @@
 	"interferogram":		{
 		"rlks":	"3",
 		"azlks": "2",
-		"reference_coordinate": 	[622252.2, 107454.9],
+		"reference_coordinate": 	[623274.660556	,105859.600433],
 		"reference_region_size":	[16,16],
 		"triangulation_mode":		0
 	},
@@ -63,10 +63,10 @@
 			"correct_HV":           "False"
 	},
 	"geocoding":			{
-			"scan_heading":	-276,
+			"scan_heading":	220,
 			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
 			"ref_mli_par"   : "mli/20150803_060749_AAAl.mli.par",
 			"table_name" 	: "Dom",
-			"refine_table"	: false
+			"refine_table"	: true
 	}
 }
