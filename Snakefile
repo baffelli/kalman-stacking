@@ -447,6 +447,8 @@ rule aps:
 #        aps_masked = temp('diff/{mastername}_{slavename}.aps.masked'),
 ##        int_filt = temp('diff/{mastername}_{slavename}.int_filt'),
         int_interp = temp('diff/{mastername}_{slavename}.unw.interp'),
+        int_masked = temp('diff/{mastername}_{slavename}.unw.mask'),
+
 #        int_unw = temp('diff/{mastername}_{slavename}.unw'),
     input:
         ifgram = 'diff/{mastername}_{slavename}.unw',
@@ -459,18 +461,21 @@ rule aps:
         mastername=slc_regex,
         slavename=slc_regex,
     params:
-        aps_window = 100,
+        aps_window = 20,
         filter_type = 1,
     run:
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
         wd = gpf.par_to_dict(input.mli_par)['range_samples']
-        #Close holes
-        interp_cmd = "interp_ad {{input.ifgram}} {{output.int_interp}} {wd} 100 10 100 3 2".format(wd=wd)
-        shell(interp_cmd)
+        #Mask unwrapped
+        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
         #low_pass filter
-        filt_cmd = "fspf {{output.int_interp}} {{output.aps}} {wd} 2 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
+        filt_cmd = "fspf {{output.int_masked}} {{output.int_interp}} {wd} 2 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
+        #Close holes
+        interp_cmd = "interp_ad {{output.int_interp}} {{output.aps}} {wd} 100 10 100 3 2".format(wd=wd)
+        shell(mask_cmd)
         shell(filt_cmd)
+        shell(interp_cmd)
 #        #load reference coordinate
 #        ref_coord = np.genfromtxt(input.reference_coord, delimiter=',')
 #        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_mask}} {{input.mask}} 1".format(wd=wd)
