@@ -71,8 +71,8 @@ class StackHelper:
             diffs.append(current)
         return diffs
 
-#    def all_diff(self, wildcards):
-#        return self.all_pattern('diff/{master}_{chan}_{slave}_{chan}.diff', wildcards)
+    def all_diff(self, wildcards):
+        return self.all_pattern('diff/{master}_{chan}_{slave}_{chan}.diff', wildcards)
 
     def first_valid_mli_par(self, wildcards):
         #"Return the first valid mli par from a list given the wildcards"
@@ -89,7 +89,7 @@ class StackHelper:
     def stacking_inputs(self, wildcards):
         pref_mapping = {'mli':'mli', 'cc':'int', 'diff':'diff', 'unw':'diff', 'aps':'diff'}
         function_map = {'mli':self.all_single, 'int':self.all_pairs, 'diff':self.all_pairs}
-        pattern_map = {'mli':'mli/{date}_{chan}.mli', 'int':"int/{{master}}_{{chan}}_{{slave}}_{{chan}}.{ext}", 'diff':"diff/{{master}}_{{chan}}_{{slave}}_{{chan}}.{ext}"}
+        pattern_map = {'mli':'mli/{date}_{chan}.{ext}', 'int':"int/{{master}}_{{chan}}_{{slave}}_{{chan}}.{ext}", 'diff':"diff/{{master}}_{{chan}}_{{slave}}_{{chan}}.{ext}"}
         pref = pref_mapping[wildcards.ext]
         function = function_map[pref]
         pattern = pattern_map[pref].format(ext=wildcards.ext)
@@ -123,7 +123,7 @@ ras = expand('int/{ints}.int.bmp', ints=ints)
 
 rule all:
     input:
-        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20,50,100,200]),
+        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif', 'mli.ave_gc.tif'], n=[10,20,50,100,200]),
         expand("diff/20150803_063749_AAAl_20150803_064019_AAAl.{ft}_gc.tif",ft=['unw','diff','aps']),
         ras,
         'geo/Dom.ls_map.tif'
@@ -227,7 +227,7 @@ rule get_list_of_all_slcs:
             writer = csv.writer(of)
             writer.writerows(slcs)
 
-
+ruleorder: multi_look > average
 #Average unwrapped data/coherence/aps etc
 rule average:
     output:
