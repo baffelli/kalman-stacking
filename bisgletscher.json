@@ -46,7 +46,7 @@
 	"interferogram":		{
 		"rlks":	"3",
 		"azlks": "2",
-		"reference_coordinate": 	[623274.660556	,105859.600433],
+		"reference_coordinate": 	[624385.862306,	105124.034257],
 		"reference_region_size":	[16,16],
 		"triangulation_mode":		0
 	},
