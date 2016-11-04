@@ -48,10 +48,15 @@
 		"azlks": "2",
 		"reference_coordinate": 	[624385.862306,	105124.034257],
 		"reference_region_size":	[16,16],
-		"triangulation_mode":		0
+		"triangulation_mode":		0,
+		"adf_window":				16,
+		"adf_alpha":				0.3
+	},
+	"aps":				{
+		"filter_radius": 50
 	},
 	"unwrapping":		{
-		"coherence_threshold":	0.6
+		"coherence_threshold":	0.7
 	},
 
 	"squint_rate":			{
