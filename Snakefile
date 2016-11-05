@@ -8,7 +8,7 @@ provider = RemoteProvider(port=22,username="baffelli", private_key="/home/baffel
 
 
 configfile: './bisgletscher.json'
-slc_regex = "(\d{8})_(\d{6})((_[A-B]{3}[l-u]))?"
+slc_regex = r"(?P<dt>\d{8}_\d{6})(_[A-B]{3}[l-u])?"
 dt_regex = "(\d{8})_(\d{6})"
 dtfmt = "%Y%m%d_%H%M%S"
 wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
@@ -19,6 +19,15 @@ def select_date_range(string_dates, date_start, date_end):
     dt_start = dt.datetime.strptime(date_start, dtfmt)
     dt_end = dt.datetime.strptime(date_end, dtfmt)
     valid_dates = [date.strftime(dtfmt) for date in dates if dt_start < date < dt_end]
+    return valid_dates
+
+def select_nth_previous(string_dates, date_end, n):
+    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
+    dt_end = dt.datetime.strptime(date_end, dtfmt)
+    #find the closest element to the end date
+    closest_index = min(dates, key=lambda x: abs(x- dt_end)) - 1
+    start = closest_index - n
+    valid_dates = dates[start]
     return valid_dates
 
 def select_n_dates(string_dates, date_start, n_dates):
@@ -65,6 +74,15 @@ class StackHelper:
 
     def valid_dates_n(self, wildcards):
         return select_n_dates(self.all_dates, wildcards.start_dt, wildcards.nifgrams)
+
+    def previous_stack(self, wildcards):
+        """
+            Return the dates of the n slcs preceding the current one
+        """
+        matches = re.search(slc_regex, wildcards.slavename)
+        stop_dt = matches.group(0)
+        start =  select_nth_previous(self.all_dates, stop_dt, 20)
+        return 'stack/{start}_stacking_20.diff'.format(start=start)
 
     def all_pairs(self, pattern, wildcards):
         valid_dates = self.valid_dates_n(wildcards)
@@ -127,8 +145,8 @@ ras = expand('int/{ints}.int.bmp', ints=ints)
 
 rule all:
     input:
-        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
-#        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['diff','aps']),
+#        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
+        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
         ras,
         'geo/Dom.ls_map.tif'
 
@@ -462,7 +480,6 @@ rule diff_par:
         par_cmd = "create_diff_par {input.int_par} - {output.diff_par} 0 0"
         shell(par_cmd)
 
-
 #Compute the atmospheric phase screen for an image
 rule aps:
     output:
@@ -497,19 +514,20 @@ rule aps:
         with open(input.reference_coord) as inputfile:
             ref_coord =  get_reference_coord(json.load(inputfile))
 #        #Mask the glacier
-#        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_masked}} {{input.combined_mask}} 0".format(wd=wd)
-#        shell(mask_cmd)
-#        #Filter strongly
-#        filt_cmd = "fspf {{input.ifgram}} {{output.int_filt}} {wd} 2 {{config[aps][filter_radius]}} 3 {{input.mli_par}}".format(wd=wd)
-#        shell(filt_cmd)
-##        mcf_cmd = "mcf {{output.int_filt}} {{input.cc}} {{input.combined_mask}} {{output.int_unw}} {wd} - - - - - 1 1 - {ridx} {azidx} 1 ".format(wd=wd, ridx=ref_coord[0], azidx=ref_coord[1])
-##        shell(mcf_cmd)
-#        interp_cmd = "interp_ad {{output.int_filt}} {{output.aps}} {wd} 100 10 100 3 2".format(wd=wd)
-#        shell(interp_cmd)
+        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_masked}} {{input.combined_mask}} 0".format(wd=wd)
+        shell(mask_cmd)
+        #Filter strongly
+        filt_cmd = "fspf {{input.ifgram}} {{output.int_filt}} {wd} 2 {{config[aps][filter_radius]}} 3 {{input.mli_par}}".format(wd=wd)
+        shell(filt_cmd)
+#        mcf_cmd = "mcf {{output.int_filt}} {{input.cc}} {{input.combined_mask}} {{output.int_unw}} {wd} - - - - - 1 1 - {ridx} {azidx} 1 ".format(wd=wd, ridx=ref_coord[0], azidx=ref_coord[1])
+#        shell(mcf_cmd)
+        interp_cmd = "interp_ad {{output.int_filt}} {{output.aps}} {wd} 100 10 100 3 2".format(wd=wd)
+        shell(interp_cmd)
         #Mask unwrapped
 #        mask_cmd = "mask_data {{input.ifgram}} {wd} {{output.int_masked}} {{input.mask}} 1".format(wd=wd)
         #Atmospheric model
-#        mod_cmd = "atm_mod {{input.ifgram}} {{input.topo}} {{input.diff_par}} {{output.aps}} - - {{input.glacier_mask}} 0 {ridx} {azidx}".format(ridx=int(ref_coord[0]), azidx=int(ref_coord[1]))
+#        mod_cmd = "atm_mod {{input.ifgram}} {{input.topo}} {{input.diff_par}} {{output.aps}} - - {{input.glacier_mask}} 1 {ridx} {azidx}".format(ridx=int(ref_coord[0]), azidx=int(ref_coord[1]))
+#        shell(mod_cmd)
 ##        shell(mod_cmd)
 #        #low_pass filter
 #        filt_cmd = "fspf {{output.int_masked}} {{output.int_interp}} {wd} 2 {{params.aps_window}} 3 {{input.mli_par}}".format(wd=wd)
@@ -541,6 +559,18 @@ rule aps:
 #        #Close holes
 #        interp_cmd = "interp_ad {{output.aps_masked}} {{output.aps}} {wd} 250 10 250 3 2".format(wd=wd)
 #        shell(interp_cmd)
+
+
+#refine the aps using the stacked interferograms
+rule aps_refinement:
+    input:
+        stack.previous_stack,
+    wildcard_constraints:
+        mastername=slc_regex,
+        slavename=slc_regex,
+    output:
+        aps = 'diff/{mastername}_{slavename}.aps_ref',
+
 
 rule cleanup_diff:
     run:
