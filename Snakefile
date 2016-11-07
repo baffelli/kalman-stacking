@@ -146,7 +146,9 @@ ras = expand('int/{ints}.int.bmp', ints=ints)
 rule all:
     input:
 #        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
-        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
+#        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
+#        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
+
         ras,
         'geo/Dom.ls_map.tif'
 
@@ -652,4 +654,21 @@ rule stacking:
     script:
         'scripts/stacking.py'
 
+
+rule variogram:
+    output:
+        avg_ifgram  = 'stack/{start_dt}_stack_{nifgrams}_{chan}.variogram',
+    input:
+        ifgrams = stack.all_diff,
+        lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
+        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
+    wildcard_constraints:
+        start_dt = dt_regex,
+#        stop_dt = dt_regex,
+    params:
+        ridx = 1173,
+        azidx = 112,
+        ws = 8
+    script:
+        'scripts/variogram.py'
 
