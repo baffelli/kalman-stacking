@@ -862,3 +862,15 @@ rule pccs:
     run:
         cmd = "ccs_pt {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pint} {output.pcc} - 0 - - -"
         shell(cmd)
+
+
+rule density_reduction:
+    output:
+        reduced_mask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_density_reduction',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_reduced',
+    input:
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
+        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards),
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_masked',
+        pdata = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct',
+    run:
