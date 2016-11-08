@@ -54,8 +54,8 @@
 	},
 	"ptarg":
 	{
-		"msr_min": 1.7,
-		"pwr_min": 0.3
+		"msr_min": 2,
+		"pwr_min": 0.9
 	},
 	"aps":				{
 		"filter_radius": 50

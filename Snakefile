@@ -105,7 +105,6 @@ class StackHelper:
 
     def all_single(self, pattern, wildcards):
         valid_dates = self.valid_dates_n(wildcards)
-        print(wildcards)
         files = expand(pattern, date=valid_dates, **wildcards)
         return files
 
@@ -153,7 +152,7 @@ rule all:
 #        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
-        'ipt/20150803_060519_stack_20_AAAl.pres',
+        'ipt/20150803_060519_stack_20_AAAl.paps',
         "mli/20150803_060749_AAAl.mli",
         'geo/Dom.ls_map.tif'
 
@@ -714,6 +713,35 @@ rule def_mod:
         cmd = "def_mod_pt {{input.plist}} {{input.pmask}} {{input.pSLC_par}} - {{input.pitab}} - - {{input.pint}} 1 {ref_idx} {{output.aps}} {{output.dh}} {{output.defo}} {{output.unw}} {{output.sigma}} {{output.pmask}} 0 -1e3 1e3 - 5 - - - - -".format(ref_idx=ref_idx)
         shell(cmd)
 
+
+rule unwrap_plist:
+    output:
+        aps ='ipt/{start_dt}_stack_{nifgrams}_{chan}.paps',#unwrapped differential phase
+    input:
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_masked',#list of point values
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',#list of point values
+        pSLC_par ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',#list of point values
+        pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
+        pint =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
+        mli_par = stack.first_valid_mli_par,
+        slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)),
+        glacier_mask = 'geo/bisgletscher_mask.bmp',
+        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pccs'
+    run:
+        import pyrat.ipt.core as ipt
+        import pyrat.fileutils.gpri_files as gpf
+        mli_par = gpf.par_to_dict(input.mli_par)
+        #Get location closest to reference
+        with open(input.reference_coord) as inputfile:
+            ref_coord =  get_reference_coord(json.load(inputfile))
+        #load plist
+        plist = ipt.Plist(input.plist, input.slc_par_names[0])
+        #Convert to slc geometryd
+        ref_coord = ref_coord[0] * mli_par.range_looks, ref_coord[1] * mli_par.azimuth_looks
+        ref_idx = plist.closest_index(ref_coord)
+        mcf_cmd = "mcf_pt  {{input.plist}} {{input.pmask}} {{input.pint}} - {{input.pcc}} {{input.glacier_mask}} {{output.aps}} - - {ref_idx} - {rlks} {azlks}".format(ref_idx=ref_idx, rlks=mli_par.range_looks, azlks=mli_par.azimuth_looks)
+        shell(mcf_cmd)
 #Determine point scatterer candidate list
 rule plist:
     output:
@@ -779,7 +807,7 @@ rule pitab:
         with open(output.pitab, 'w+') as of:
             counter = 0
             for image_counter, idx_master in enumerate(range(1, int(wildcards.nifgrams))):
-                for idx_slave in range(idx_master + 1, idx_master + 4, 1):
+                for idx_slave in range(idx_master + 1, idx_master + 2, 1):
                     print(idx_master, idx_slave)
                     if idx_slave < int(wildcards.nifgrams):
                         counter += 1
@@ -804,3 +832,33 @@ rule pint:
         cmd = "intf_pt {input.plist} {input.pmask} {input.pitab} - {input.pSLC} {output.pint} 0 {input.pSLC_par}"
         shell(cmd)
 
+
+#Temporal Coherence for point data stack
+rule pcct:
+    output:
+        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct'
+    input:
+        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
+        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
+        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
+        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_masked',
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
+    run:
+        cmd = "cct_pt {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pint} {output.pcc} 0 - - -"
+        shell(cmd)
+
+#Spatial Coherence for point data stack
+rule pccs:
+    output:
+        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pccs'
+    input:
+        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
+        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
+        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
+        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_masked',
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
+    run:
+        cmd = "ccs_pt {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pint} {output.pcc} - 0 - - -"
+        shell(cmd)
