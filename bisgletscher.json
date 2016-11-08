@@ -52,6 +52,11 @@
 		"adf_window":				16,
 		"adf_alpha":				0.3
 	},
+	"ptarg":
+	{
+		"msr_min": 1.7,
+		"pwr_min": 0.3
+	},
 	"aps":				{
 		"filter_radius": 50
 	},

@@ -20,8 +20,8 @@ def shapefile_to_json(inputs, outputs, threads, config, params, wildcards):
         feature_json['id'] = feature.GetField('id')
         feature_json['properties']['radar_coordinates'] = list(map(int, geocoding_table.geo_coord_to_radar_coord([geom.GetX(),geom.GetY()])))
         feature_collection['features'].append(feature_json)
-kls -ltr
-with open(outputs.reference_coord, 'w+') as of:
+
+    with open(outputs.reference_coord, 'w+') as of:
         json.dump(feature_collection, of)
     #
     # x_min, x_max, y_min, y_max = outline_layer.GetExtent()
