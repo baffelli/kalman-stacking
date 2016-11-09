@@ -152,7 +152,7 @@ rule all:
 #        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
-        'ipt/20150803_060519_stack_20_AAAl.paps',
+        expand('ipt/20150803_060519_stack_20_AAAl.{ext}', ext=['paps', 'plist_glacier']),
         "mli/20150803_060749_AAAl.mli",
         'geo/Dom.ls_map.tif'
 
@@ -211,6 +211,7 @@ rule glacier_mask:
     output:
         mask = 'geo/bisgletscher_mask.bmp'
     run:
+        3
         shell('cp {input.mask} {output.mask}')
 
 
@@ -334,9 +335,9 @@ rule cc_mask:
 #Invert a mask
 rule invert_mask:
     input:
-        mask = "{name}_mask.bmp"
+        mask = "{name}.bmp"
     output:
-        mask_inv = "{name}_mask_inv.bmp"
+        mask_inv = "{name}_inv.bmp"
     run:
         print(wildcards)
         shell('mask_op {input.mask} {input.mask} {output.mask_inv} 2')
@@ -766,6 +767,24 @@ rule plist_mask:
         cmd = "msk_pt {input.plist} - {input.mask} {output.plist} {output.pmask} {config[interferogram][rlks]} {config[interferogram][azlks]}"
         shell(cmd)
 
+
+#Point list for the glacier
+rule plist_glacier:
+    output:
+        plist_temp = temp('ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_temp'),
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_glacier',
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_glacier',
+    input:
+         mask = 'geo/bisgletscher_mask_inv.bmp',
+         slc_par =  'slc_desq/{start_dt}_{chan}.slc_dec.par'
+    run:
+        import pyrat.fileutils.gpri_files as gpf
+        slc_par = gpf.par_to_dict(input.slc_par)
+        cmd = "mkgrid {{output.plist_temp}} {nr} {naz} 10 10 - -".format(nr=slc_par['range_samples'], naz=slc_par['azimuth_lines'])
+        shell(cmd)
+        mask_cmd = "msk_pt {output.plist_temp} - {input.mask}  {output.plist} {output.pmask} {config[interferogram][rlks]} {config[interferogram][azlks]}"
+        shell(mask_cmd)
+
 #Create slc_tab:
 rule slc_tab:
     output:
@@ -864,13 +883,24 @@ rule pccs:
         shell(cmd)
 
 
+#Reduces the point density for a point stack
 rule density_reduction:
     output:
         reduced_mask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_density_reduction',
         plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_reduced',
+#        pdata = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.{pdata}_reduced',
     input:
         pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
         slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards),
         plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_masked',
-        pdata = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct',
+        pquality = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct',
+#        pdata = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.{pdata}',
     run:
+        cmd = 'pt_density_reduction {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pquality} 20 {output.reduced_mask}'
+        shell(cmd)
+        mask_cmd = "msk_pt {input.plist} {output.reduced_mask} - {output.plist} - - -"
+        shell(mask_cmd)
+
+
+rule variogram_inputs:
+    input:
