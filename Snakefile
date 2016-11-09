@@ -152,7 +152,7 @@ rule all:
 #        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
-        expand('ipt/20150803_060519_stack_20_AAAl.{ext}', ext=['paps', 'plist_glacier']),
+        expand('ipt/20150803_060519_stack_20_AAAl.{ext}', ext=['paps', 'plist_glacier', 'phgt_masked', 'phgt_glacier']),
         "mli/20150803_060749_AAAl.mli",
         'geo/Dom.ls_map.tif'
 
@@ -901,6 +901,15 @@ rule density_reduction:
         mask_cmd = "msk_pt {input.plist} {output.reduced_mask} - {output.plist} - - -"
         shell(mask_cmd)
 
-
-rule variogram_inputs:
+#Height for points in the stack
+rule hgt_pt:
     input:
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{type}',
+        hgt = 'geo/Dom.dem_seg_fgc',
+        mli_par = stack.first_valid_mli_par,
+        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)
+    output:
+        phgt =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.phgt{type,(.*)|(_\w+)}',
+    run:
+        cmd = "data2pt {input.hgt} {input.mli_par} {input.plist} {input.slc_par_names[0]} {output.phgt} 1 2"
+        shell(cmd)
