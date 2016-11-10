@@ -54,7 +54,11 @@
 	},
 	"ptarg":
 	{
-		"msr_min": 2.5,
+		"method": "single_reference",
+		"reference_number": 1,
+		"step": 1,
+		"window": 4,
+		"msr_min": 1.5,
 		"pwr_min": 0.9
 	},
 	"aps":				{

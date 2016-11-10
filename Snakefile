@@ -157,7 +157,7 @@ rule all:
 #        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
-        expand('ipt/20150803_060519_stack_20_AAAl.{ext}', ext=['paps', 'phgt_stable', 'phgt_grid', 'plist_glacier', 'phgt_glacier']),
+        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
 #        "mli/20150803_060749_AAAl.mli",
 #        'geo/Dom.ls_map.tif'
 
@@ -692,55 +692,24 @@ rule variogram:
 
 
 ##Apply the deformation model
-#rule def_mod:
-#    output:
-#        aps = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pres',#residual
-#        dh = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pdh',#heigh correction
-#        defo ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pdef',#deformation model
-#        unw ='ipt/{start_dt}_stack_{nifgrams}_{chan}.punw',#unwrapped differential phase
-#        sigma ='ipt/{start_dt}_stack_{nifgrams}_{chan}.psigma',#unwrapped differential phase
-#        pmask ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_mod',#mask of accepted points
-#    input:
-#        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_masked',#list of point values
-#        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',#list of point values
-#        pSLC_par ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',#list of point values
-#        pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
-##        pbase = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pbase',
-#        pint =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
-#        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
-#        mli_par = stack.first_valid_mli_par,
-#        slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards))
-#
-#    run:
-#        import pyrat.ipt.core as ipt
-#        import pyrat.fileutils.gpri_files as gpf
-#        mli_par = gpf.par_to_dict(input.mli_par)
-#        #Get location closest to reference
-#        with open(input.reference_coord) as inputfile:
-#            ref_coord =  get_reference_coord(json.load(inputfile))
-#        #load plist
-#        plist = ipt.Plist(input.plist, input.slc_par_names[0])
-#        #Convert to slc geometryd
-#        ref_coord = ref_coord[0] * mli_par.range_looks, ref_coord[1] * mli_par.azimuth_looks
-#        ref_idx = plist.closest_index(ref_coord)
-#        cmd = "def_mod_pt {{input.plist}} {{input.pmask}} {{input.pSLC_par}} - {{input.pitab}} - - {{input.pint}} 1 {ref_idx} {{output.aps}} {{output.dh}} {{output.defo}} {{output.unw}} {{output.sigma}} {{output.pmask}} 0 -1e3 1e3 - 5 - - - - -".format(ref_idx=ref_idx)
-#        shell(cmd)
-
-
-rule unwrap_plist:
+rule def_mod:
     output:
-        aps ='ipt/{start_dt}_stack_{nifgrams}_{chan}.paps',#unwrapped differential phase
+        aps = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pres',#residual
+        dh = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pdh',#heigh correction
+        defo ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pdef',#deformation model
+        unw ='ipt/{start_dt}_stack_{nifgrams}_{chan}.punw',#unwrapped differential phase
+        sigma ='ipt/{start_dt}_stack_{nifgrams}_{chan}.psigma',#unwrapped differential phase
+        pmask ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_mod',#mask of accepted points
     input:
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',#list of point values
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',#list of point values
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist',#list of point values
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',#list of point values
         pSLC_par ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',#list of point values
         pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
         pint =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         mli_par = stack.first_valid_mli_par,
-        slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)),
-        glacier_mask = 'geo/bisgletscher_mask.bmp',
-        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pccs'
+        slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards))
+
     run:
         import pyrat.ipt.core as ipt
         import pyrat.fileutils.gpri_files as gpf
@@ -753,8 +722,10 @@ rule unwrap_plist:
         #Convert to slc geometryd
         ref_coord = ref_coord[0] * mli_par.range_looks, ref_coord[1] * mli_par.azimuth_looks
         ref_idx = plist.closest_index(ref_coord)
-        mcf_cmd = "mcf_pt  {{input.plist}} {{input.pmask}} {{input.pint}} - {{input.pcc}} - {{output.aps}} - - {ref_idx} - {rlks} {azlks}".format(ref_idx=ref_idx, rlks=mli_par.range_looks, azlks=mli_par.azimuth_looks)
-        shell(mcf_cmd)
+        cmd = "def_mod_pt {{input.plist}} {{input.pmask}} {{input.pSLC_par}} - {{input.pitab}} - - {{input.pint}} 1 {ref_idx} {{output.aps}} {{output.dh}} {{output.defo}} {{output.unw}} {{output.sigma}} {{output.pmask}} 0 -1e3 1e3 - 5 - - - - -".format(ref_idx=ref_idx)
+        shell(cmd)
+
+
 
 
 #Create slc_tab:
@@ -828,7 +799,7 @@ rule plist_grid:
     run:
         import pyrat.fileutils.gpri_files as gpf
         slc_par = gpf.par_to_dict(input.slc_par_names[0])
-        step = 10
+        step = 5
         wd = slc_par['range_samples']
         maxr =  wd // step
         maxaz = slc_par['azimuth_lines'] // step
@@ -838,15 +809,18 @@ rule plist_grid:
 
 #Height for
 rule hgt_pt:
+    output:
+        phgt =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.phgt{maskname}',
+    wildcard_constraints:
+        maskname ="(.*|.+)"
     input:
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{type}',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{maskname}',
         hgt = 'geo/Dom.dem_seg_fgc',
         mli_par = stack.first_valid_mli_par,
         slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)
     output:
-        phgt =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.phgt{type,(.*)|(_\w+)}',
     run:
-        cmd = "data2pt {input.hgt} {input.mli_par} {input.plist} {input.slc_par_names[0]} {output.phgt} 1 2"
+        cmd = "data2pt {input.hgt} {input.mli_par} {input.plist} {input.slc_par} {output.phgt} 1 2"
         shell(cmd)
 
 
@@ -859,12 +833,12 @@ rule pSLC_par:
     input:
         slc_pars = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards),#in theory we could take the slcs from the tab, but by creating it we make sure that all of them exist
         slc_tab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.slc_tab',
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist',
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
         slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
         slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)
     run:
-        cmd = 'SLC2pt {input.slc_tab} {input.plist} {input.pmask} {output.pSLC_par} {output.pSLC} -'
+        cmd = 'SLC2pt {input.slc_tab} {input.plist} - {output.pSLC_par} {output.pSLC} -'
         shell(cmd)
 
 
@@ -876,78 +850,124 @@ rule pitab:
         slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
         slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)
     run:
-        import itertools
-        with open(output.pitab, 'w+') as of:
-            counter = 0
-            for image_counter, idx_master in enumerate(range(1, int(wildcards.nifgrams))):
-                for idx_slave in range(idx_master + 1, idx_master + 2, 1):
-                    print(idx_master, idx_slave)
-                    if idx_slave < int(wildcards.nifgrams):
-                        counter += 1
-                        of.write("{idx_master} {idx_slave} {counter} 1 \n".format(idx_master=idx_master, idx_slave=idx_slave, counter=counter))
+        'scripts/itab.py'
 
+###Interferograms for point data stack
+#rule pint:
+#    output:
+#        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint'
+#    input:
+#        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
+#        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
+#        pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
+#        pSLC = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC',
+#        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
+#        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
+#        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
+#    run:
+#        cmd = "intf_pt {input.plist} {input.pmask} {input.pitab} - {input.pSLC} {output.pint} 0 {input.pSLC_par}"
+#        shell(cmd)
 
-
-
-##Interferograms for point data stack
-rule pint:
-    output:
-        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint'
-    input:
-        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
-        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
-        pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
-        pSLC = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC',
-        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
-    run:
-        cmd = "intf_pt {input.plist} {input.pmask} {input.pitab} - {input.pSLC} {output.pint} 0 {input.pSLC_par}"
-        shell(cmd)
-
-
-##Extract points from entire interferogram
-#rule pint_from_mask:
 #
+###Extract points from entire interferogram
+#rule pint_from_mask:
+#    output:
+#        pint = 'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.pint{maskname}'
+#    wildcard_constraints:
+#        start_dt = dt_regex,
+#        stop_dt = dt_regex,
+#        maskname ="(.*|.+)"
+#    input:
+#        plist = 'ipt/{start_dt}_stack_20_{chan}.plist{maskname}',
+#        ifgram = 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int',
+#        mli_par = 'mli/{start_dt}_{chan}.mli.par',
+#        slc_par = 'slc_desq/{start_dt}_{chan}.slc_dec.par'
+#    run:
+#        cmd = "data2pt {input.ifgram} {input.mli_par} {input.plist} {input.slc_par} {output.pint} 1 0"
+#        shell(cmd)
 
-#Temporal Coherence for point data stack
-rule pcct:
-    output:
-        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct'
-    input:
-        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
-        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
-        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
-        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
-    run:
-        cmd = "cct_pt {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pint} {output.pcc} 0 - - -"
-        shell(cmd)
 
 #Spatial Coherence for point data stack
 rule pccs:
     output:
-        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pccs'
+        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct{maskname}'
+    wildcard_constraints:
+        maskname ="(.*|.+)"
     input:
-        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
-        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
-        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
-        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
+        plist = 'ipt/{start_dt}_stack_20_{chan}.plist{maskname}',
+        pint = 'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.pint{maskname}',
+        mli_par = 'mli/{start_dt}_{chan}.mli.par',
+        slc_par = 'slc_desq/{start_dt}_{chan}.slc_dec.par'
     run:
-        cmd = "ccs_pt {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pint} {output.pcc} - 0 - - -"
+        cmd = "ccs_pt {input.plist} - {input.slc_par} {input.pint} {output.pcc} - 0 - - -"
         shell(cmd)
 
 
-#
-#rule kriging_inputs:
+#rule unwrap_plist:
+#    output:
+#        aps ='ipt/{start_dt}_{chan}_{stop_dt}_{chan}.punw{maskname}',#unwrapped differential phase
 #    input:
-#        plist_stable = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
-#        phgt_stable = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.phgt_stable',
-#        plist_glacier = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_glacier',
-#        phgt_stable = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.phgt_glacier',
+#        plist = 'ipt/{start_dt}_stack_20_{chan}.plist{maskname}',#list of point values
+#        #pmask = 'ipt/{start_dt}_stack_20_{chan}.pmask{maskname}',#list of point values
+#        pint =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.pint{maskname}',
+#        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
+#        mli_par = 'mli/{start_dt}_{chan}.mli.par',
+#        slc_par = 'slc_desq/{start_dt}_{chan}.slc_dec.par',
+#        pcc = 'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.pcc{maskname}'
+#    run:
+#        import pyrat.ipt.core as ipt
+#        import pyrat.fileutils.gpri_files as gpf
+#        mli_par = gpf.par_to_dict(input.mli_par)
+#        #Get location closest to reference
+#        with open(input.reference_coord) as inputfile:
+#            ref_coord =  get_reference_coord(json.load(inputfile))
+#        #load plist
+#        plist = ipt.Plist(input.plist, input.slc_par)
+#        #Convert to slc geometryd
+#        ref_coord = ref_coord[0] * mli_par.range_looks, ref_coord[1] * mli_par.azimuth_looks
+#        ref_idx = plist.closest_index(ref_coord)
+#        mcf_cmd = "mcf_pt  {{input.plist}} -  {{input.pint}} - {{input.pcc}} - {{output.aps}} - - {ref_idx} - {rlks} {azlks}".format(ref_idx=ref_idx, rlks=mli_par.range_looks, azlks=mli_par.azimuth_looks)
+#        shell(mcf_cmd)
+
+
+rule kriging_inputs:
+    output:
+        pint =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.pint{maskname}.csv',
+        punw =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.punw{maskname}.csv',
+        phgt =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.phgt{maskname}.csv',
+    wildcard_constraints:
+        start_dt = dt_regex,
+        stop_dt = dt_regex,
+        maskname ="(.*|.+)"
+    input:
+        slc_par = 'slc_desq/{start_dt}_{chan}.slc_dec.par',
+        pint =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.pint{maskname}',
+        punw =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.punw{maskname}',
+        phgt =  'ipt/{start_dt}_{chan}_{stop_dt}_{chan}.phgt{maskname}',
+        plist = 'ipt/{start_dt}_stack_20_{chan}.plist{maskname}',
+    script:
+        'scripts/prepare_kriging_inputs.py'
+
+
+
+##Temporal Coherence for point data stack
+#rule pcct:
+#    output:
+#        pcc = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pcct'
+#    input:
+#        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
+#        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
+#        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
+#        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
+#        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
+#        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
+#    run:
+#        cmd = "cct_pt {input.plist} {input.pmask} {input.slc_par_names[0]} {input.pint} {output.pcc} 0 - - -"
+#        shell(cmd)
+
+
+
+#a
 
 ##Reduces the point density for a point stack
 #rule density_reduction:
