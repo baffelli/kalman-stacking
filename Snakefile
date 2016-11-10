@@ -157,7 +157,8 @@ rule all:
 #        expand('stack/20150803_060519_stack_{n}_AAAl.{ext}',ext=['cc.ave_gc.tif', 'unw.ave_gc.tif', 'diff.ave_gc.tif'], n=[10,20]),
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
-        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
+#        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
+        'ipt/20150803_060519_stack_10_AAAl.punw'
 #        "mli/20150803_060749_AAAl.mli",
 #        'geo/Dom.ls_map.tif'
 
@@ -701,15 +702,14 @@ rule def_mod:
         sigma ='ipt/{start_dt}_stack_{nifgrams}_{chan}.psigma',#unwrapped differential phase
         pmask ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_mod',#mask of accepted points
     input:
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist',#list of point values
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',#list of point values
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',#list of point values
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',#list of point values
         pSLC_par ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',#list of point values
         pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
-        pint =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
+        pint =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint_stable',
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         mli_par = stack.first_valid_mli_par,
         slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards))
-
     run:
         import pyrat.ipt.core as ipt
         import pyrat.fileutils.gpri_files as gpf
@@ -828,13 +828,15 @@ rule hgt_pt:
 #Create pSLC_par:
 rule pSLC_par:
     output:
-        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
-        pSLC = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC'
+        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par{maskname}',
+        pSLC = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC{maskname}'
+    wildcard_constraints:
+        maskname ="(.*|.+)"
     input:
         slc_pars = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards),#in theory we could take the slcs from the tab, but by creating it we make sure that all of them exist
         slc_tab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.slc_tab',
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist',
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{maskname}',
+#        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask',
         slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
         slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)
     run:
@@ -849,24 +851,26 @@ rule pitab:
     input:
         slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
         slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)
-    run:
+    script:
         'scripts/itab.py'
 
 ###Interferograms for point data stack
-#rule pint:
-#    output:
-#        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint'
-#    input:
-#        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
-#        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
-#        pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
-#        pSLC = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC',
-#        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',
-#        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist_stable',
-#        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask_stable',
-#    run:
-#        cmd = "intf_pt {input.plist} {input.pmask} {input.pitab} - {input.pSLC} {output.pint} 0 {input.pSLC_par}"
-#        shell(cmd)
+rule pint:
+    output:
+        pint = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint{maskname}'
+    wildcard_constraints:
+        maskname ="(.*|.+)"
+    input:
+        slc_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards),
+        slc_par_names = lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)   ,
+        pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
+        pSLC = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC{maskname}',
+        pSLC_par = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par{maskname}',
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{maskname}',
+#        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask{maskname}',
+    run:
+        cmd = "intf_pt {input.plist} - {input.pitab} - {input.pSLC} {output.pint} 0 {input.pSLC_par}"
+        shell(cmd)
 
 #
 ###Extract points from entire interferogram
