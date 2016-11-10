@@ -54,7 +54,7 @@
 	},
 	"ptarg":
 	{
-		"msr_min": 2,
+		"msr_min": 2.5,
 		"pwr_min": 0.9
 	},
 	"aps":				{
