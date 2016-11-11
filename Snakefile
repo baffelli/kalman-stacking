@@ -158,7 +158,7 @@ rule all:
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
 #        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
-        expand('ipt/20150803_060519_stack_200_AAAl.{ext}', ext=['pint_stable.csv', 'phgt_stable.csv'])
+        expand('ipt/20150803_060519_stack_200_AAAl.{ext}', ext=['pint.csv', 'phgt.csv'])
 #        "mli/20150803_060749_AAAl.mli",
 #        'geo/Dom.ls_map.tif'
 
@@ -705,13 +705,14 @@ rule def_mod:
         maskname ="(.*|.+)"
     input:
         plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist',#list of point values
-        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask{maskname}',#list of point values
         pSLC_par ='ipt/{start_dt}_stack_{nifgrams}_{chan}.pSLC_par',#list of point values
         pitab = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pitab',
         pint =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pint',
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         mli_par = stack.first_valid_mli_par,
         slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards))
+    params:
+        pmask = lambda wildcards: "-" if not wildcards.maskname else 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask{maskname}'.format(**wildcards),#list of point values
     run:
         import pyrat.ipt.core as ipt
         import pyrat.fileutils.gpri_files as gpf
@@ -724,7 +725,7 @@ rule def_mod:
         #Convert to slc geometryd
         ref_coord = ref_coord[0] * mli_par.range_looks, ref_coord[1] * mli_par.azimuth_looks
         ref_idx = plist.closest_index(ref_coord)
-        cmd = "def_mod_pt {{input.plist}} {{input.pmask}} {{input.pSLC_par}} - {{input.pitab}} - - {{input.pint}} 1 {ref_idx} {{output.aps}} {{output.dh}} {{output.defo}} {{output.unw}} {{output.sigma}} {{output.pmask}} 0 -1e3 1e3 - 5 - - - - -".format(ref_idx=ref_idx)
+        cmd = "def_mod_pt {{input.plist}} {{params.pmask}} {{input.pSLC_par}} - {{input.pitab}} - - {{input.pint}} 1 {ref_idx} {{output.aps}} {{output.dh}} {{output.defo}} {{output.unw}} {{output.sigma}} {{output.pmask}} 0 -1e3 1e3 - 5 - - - - -".format(ref_idx=ref_idx)
         shell(cmd)
 
 
@@ -794,6 +795,18 @@ rule plist_mask:
         shell(cmd)
 
 
+#Mask that excludes the glacier:
+rule plist_from_pmask:
+    output:
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{maskname}',
+    wildcard_constraints:
+        maskname ="(.*|.+)"
+    input:
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist',
+        pmask = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.pmask{maskname}',
+    run:
+        cmd = "msk_pt {input.plist} {input.pmask} - {output.plist} - {config[interferogram][rlks]} {config[interferogram][azlks]}"
+        shell(cmd)
 
 
 
