@@ -56,10 +56,10 @@
 	{
 		"ref": 1,
 		"step": 1,
-		"window": 4,
+		"window": 1,
 		"stride": 0,
-		"msr_min": 1.5,
-		"pwr_min": 0.9
+		"msr_min": 1.8,
+		"pwr_min": 0.95
 	},
 	"aps":				{
 		"filter_radius": 50

@@ -19,64 +19,185 @@ ifgram_grid = data.frame(x=unw_grid_file$x, y=unw_grid_file$y, r=unw_grid_file$r
 
 
 #Color ramp for plotting
-cols <-  colorRampPalette(c("blue",'white',"red"))(256)
+cols <-  colorRampPalette(c("blue", 'white', "red"))(256)
 
 #Model as a function of location
-model_loc_eq <- phase ~ x + y + I(x**2) + I(y**2)  + I(y*x) 
-model_loc <- lm(model_loc_eq, data=ifgram_stable)
-predicted_aps_stable.first_fit = predict(model_loc, se.fit=TRUE)
+model_loc_eq <- phase ~ x + y + I(x ** 2) + I(y ** 2)  + I(y * x)
+model_loc <- lm(model_loc_eq, data = ifgram_stable)
+predicted_aps_stable.first_fit = predict(model_loc, se.fit = TRUE)
 
 #Model as a function of height
-model_h_eq <- phase ~ z + I(z**2) 
-model_h <- lm(model_h_eq, data=ifgram_stable)
-predicted_aps_stable.second_fit = predict(model_h, se.fit=TRUE)
+model_h_eq <- phase ~ z + I(z ** 2)
+model_h <- lm(model_h_eq, data = ifgram_stable)
+predicted_aps_stable.second_fit = predict(model_h, se.fit = TRUE)
 
 #Mixed models as a function of height and location
-model_mixed_eq <- phase ~ z + I(z**2)  + x + y + I(x**2) + I(y**2)  + I(y*x) 
-model_mixed <- lm(model_mixed_eq, data=ifgram_stable)
-predicted_aps_stable.third_fit = predict(model_mixed, se.fit=TRUE)
+model_mixed_eq <-
+  phase ~ z + I(z ** 2)  + x + y + I(x ** 2) + I(y ** 2)  + I(y * x)
+model_mixed <- lm(model_mixed_eq, data = ifgram_stable)
+predicted_aps_stable.third_fit = predict(model_mixed, se.fit = TRUE)
 
 #Mixed models as a function of range and azimuth
-model_mixed_pol_eq <- phase ~ r + I(r**2)
-model_mixed_pol <- lm(model_mixed_pol_eq, data=ifgram_stable)
-predicted_aps_stable.fourth_fit = predict(model_mixed_pol, se.fit=TRUE)
+model_mixed_pol_eq <- phase ~ r + I(r ** 2)
+model_mixed_pol <- lm(model_mixed_pol_eq, data = ifgram_stable)
+predicted_aps_stable.fourth_fit = predict(model_mixed_pol, se.fit = TRUE)
 
 #Function to scale colors
-scale_colors <- function(data, color_gradient ,lmin=-2*pi, lmax=2*pi){
-  color_gradient[cut(data, breaks=seq(lmin, lmax, l=length(color_gradient)))]
-}
+scale_colors <-
+  function(data,
+           color_gradient ,
+           lmin = -2 * pi,
+           lmax = 2 * pi) {
+    color_gradient[cut(data, breaks = seq(lmin, lmax, l = length(color_gradient)))]
+  }
 
-par(mfrow=c(4,3))
+par(mfrow = c(4, 3))
 lmin <- -10
-lmax<-10
+lmax <- 10
 sf <- 2
 pch <- 1
-r<-ifgram_stable$r
-az<-ifgram_stable$az
+r <- ifgram_stable$r
+az <- ifgram_stable$az
 #Unwrapped phase
-plot(r, az, col=scale_colors(ifgram_stable$phase, cols ,lmin=lmin, lmax=lmax), pch=pch, main="Unwrapped point scatterers phase")
+plot(
+  r,
+  az,
+  col = scale_colors(ifgram_stable$phase, cols , lmin = lmin, lmax = lmax),
+  pch = pch,
+  main = "Unwrapped point scatterers phase"
+)
 #First model
-plot(r,az, col=scale_colors(predicted_aps_stable.first_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Modeled phase (location)", cex=predicted_aps_stable.first_fit$se.fit*sf)
+plot(
+  r,
+  az,
+  col = scale_colors(
+    predicted_aps_stable.first_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Modeled phase (location)",
+  cex = predicted_aps_stable.first_fit$se.fit * sf
+)
 #First differential phase
-plot(r, az, col=scale_colors(ifgram_stable$phase - predicted_aps_stable.first_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Differential phase")
+plot(
+  r,
+  az,
+  col = scale_colors(
+    ifgram_stable$phase - predicted_aps_stable.first_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Differential phase"
+)
 #Phase again
-plot(r, az, col=scale_colors(ifgram_stable$phase, cols ,lmin=lmin, lmax=lmax), pch=pch, main="Unwrapped point scatterers phase")
+plot(
+  r,
+  az,
+  col = scale_colors(ifgram_stable$phase, cols , lmin = lmin, lmax = lmax),
+  pch = pch,
+  main = "Unwrapped point scatterers phase"
+)
 #Second model
-plot(r,az, col=scale_colors(predicted_aps_stable.second_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Modeled phase (height)", cex=predicted_aps_stable.second_fit$se.fit*sf)
+plot(
+  r,
+  az,
+  col = scale_colors(
+    predicted_aps_stable.second_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Modeled phase (height)",
+  cex = predicted_aps_stable.second_fit$se.fit * sf
+)
 #Second differential phase
-plot(r,az, col=scale_colors(ifgram_stable$phase - predicted_aps_stable.second_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Differential phase")
+plot(
+  r,
+  az,
+  col = scale_colors(
+    ifgram_stable$phase - predicted_aps_stable.second_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Differential phase"
+)
 #Phase again
-plot(r, az, col=scale_colors(ifgram_stable$phase, cols ,lmin=lmin, lmax=lmax), pch=pch, main="Unwrapped point scatterers phase")
+plot(
+  r,
+  az,
+  col = scale_colors(ifgram_stable$phase, cols , lmin = lmin, lmax = lmax),
+  pch = pch,
+  main = "Unwrapped point scatterers phase"
+)
 #Third model
-plot(r, az, col=scale_colors(predicted_aps_stable.third_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Modeled phase (mixed)", cex=predicted_aps_stable.third_fit$se.fit*sf)
+plot(
+  r,
+  az,
+  col = scale_colors(
+    predicted_aps_stable.third_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Modeled phase (mixed)",
+  cex = predicted_aps_stable.third_fit$se.fit * sf
+)
 #Third differential phase
-plot(r, az, col=scale_colors(ifgram_stable$phase - predicted_aps_stable.third_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Differential phase")
+plot(
+  r,
+  az,
+  col = scale_colors(
+    ifgram_stable$phase - predicted_aps_stable.third_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Differential phase"
+)
 #Phase again
-plot(r, az, col=scale_colors(ifgram_stable$phase, cols ,lmin=lmin, lmax=lmax), pch=pch, main="Unwrapped point scatterers phase")
+plot(
+  r,
+  az,
+  col = scale_colors(ifgram_stable$phase, cols , lmin = lmin, lmax = lmax),
+  pch = pch,
+  main = "Unwrapped point scatterers phase"
+)
 #Third model
-plot(r, az, col=scale_colors(predicted_aps_stable.fourth_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Modeled phase (polar)", cex=predicted_aps_stable.third_fit$se.fit*sf)
+plot(
+  r,
+  az,
+  col = scale_colors(
+    predicted_aps_stable.fourth_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Modeled phase (polar)",
+  cex = predicted_aps_stable.third_fit$se.fit * sf
+)
 #Third differential phase
-plot(r, az, col=scale_colors(ifgram_stable$phase - predicted_aps_stable.fourth_fit$fit, cols, lmin=lmin, lmax=lmax), pch=pch, main="Differential phase")
+plot(
+  r,
+  az,
+  col = scale_colors(
+    ifgram_stable$phase - predicted_aps_stable.fourth_fit$fit,
+    cols,
+    lmin = lmin,
+    lmax = lmax
+  ),
+  pch = pch,
+  main = "Differential phase"
+)
 
 #Diff ifgram
 res<-data.frame(x=ifgram$x,y=ifgram$y, phase=ifgram$phase - predicted_hgt$fit)
