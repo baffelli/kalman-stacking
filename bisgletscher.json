@@ -56,8 +56,8 @@
 	{
 		"ref": 1,
 		"step": 1,
-		"window": 1,
-		"stride": 0,
+		"window": 5,
+		"stride": 1,
 		"msr_min": 1.8,
 		"pwr_min": 0.95
 	},

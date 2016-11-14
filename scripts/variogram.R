@@ -1,30 +1,72 @@
 library(geoR)
 library(akima)
+library(ggplot2)
+
 #Read data
-unw_stable_file<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_120249_AAAl_20150803_120519_AAAl.punw_stable.csv', sep=',', head=T)
-unw_grid_file<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_120249_AAAl_20150803_120519_AAAl.punw_grid.csv', sep=',', head=T)
+unw<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_060519_stack_50_AAAl.punw.csv', sep=',', head=T)
+#unw_grid_file<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_120249_AAAl_20150803_120519_AAAl.punw_grid.csv', sep=',', head=T)
 
 #Read heights for corresponding points
-hgt_stable_file<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_120249_AAAl_20150803_120519_AAAl.phgt_stable.csv', sep=',', head=T)
-hgt_grid_file<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_120249_AAAl_20150803_120519_AAAl.phgt_grid.csv', sep=',', head=T)
+hgt<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_060519_stack_50_AAAl.phgt.csv', sep=',', head=T)
+#hgt_grid_file<-read.table('/home/baffelli/PhD/trunk/Bisgletscher_pol/ipt/20150803_120249_AAAl_20150803_120519_AAAl.phgt_grid.csv', sep=',', head=T)
 
 
-#Create convenient data frames
-hgt_grid = data.frame(x=hgt_grid_file$x, y=hgt_grid_file$y,  r=hgt_grid_file$ridx, z=hgt_grid_file$record_0)
-hgt_stable = data.frame(x=hgt_stable_file$x, y=hgt_stable_file$y, r=hgt_stable_file$ridx, az=hgt_stable_file$azidx, z=hgt_stable_file$record_0)
-ifgram_stable = data.frame(x=unw_stable_file$x, y=unw_stable_file$y, r=unw_stable_file$ridx, az=unw_stable_file$azidx, phase=unw_stable_file$record_0, z=hgt_stable$z)
-ifgram_grid = data.frame(x=unw_grid_file$x, y=unw_grid_file$y, r=unw_grid_file$ridx, az=unw_grid_file$azidx, phase=unw_grid_file$record_0, z=hgt_grid$z)
+#Function for variance across rows
+RowVar <- function(x) {
+  rowSums((x - rowMeans(x))^2)/(dim(x)[2] - 1)
+}
 
+#Compute variance over time
+unw.mat <-data.matrix(unw[,-(1:3)])
+unw.var <- RowVar(unw.mat)
+
+
+
+#add height to dataframe
+unw_stable$z <- hgt_stable$record_0
+unw_stable$dt <- seq(0,120*60*length(hgt_stable$record_0),l=length(hgt_stable$record_0))
+
+# #Create convenient data frames
+# hgt_grid = data.frame(x=hgt_grid_file$x, y=hgt_grid_file$y,  r=hgt_grid_file$ridx, z=hgt_grid_file$record_0)
+# hgt_stable = data.frame(x=hgt_stable_file$x, y=hgt_stable_file$y, r=hgt_stable_file$ridx, az=hgt_stable_file$azidx, z=hgt_stable_file$record_0)
+# ifgram_stable = data.frame(x=unw_stable_file$x, y=unw_stable_file$y, r=unw_stable_file$ridx, az=unw_stable_file$azidx, phase=unw_stable_file$record_0, z=hgt_stable$z)
+# ifgram_grid = data.frame(x=unw_grid_file$x, y=unw_grid_file$y, r=unw_grid_file$ridx, az=unw_grid_file$azidx, phase=unw_grid_file$record_0, z=hgt_grid$z)
+# 
+# 
 
 
 
 #Color ramp for plotting
 cols <-  colorRampPalette(c("blue", 'white', "red"))(256)
 
-#Model as a function of location
-model_loc_eq <- phase ~ x + y + I(x ** 2) + I(y ** 2)  + I(y * x)
-model_loc <- lm(model_loc_eq, data = ifgram_stable)
-predicted_aps_stable.first_fit = predict(model_loc, se.fit = TRUE)
+#Function to scale colors
+scale_colors <-
+  function(data,
+           color_gradient ,
+           lmin = -2 * pi,
+           lmax = 2 * pi) {
+    color_gradient[cut(data, breaks = seq(lmin, lmax, l = length(color_gradient)))]
+  }
+
+par(mfrow = c(4, 3))
+ 
+
+par(mfrow = c(4, 3))
+lmin <- -10
+lmax <- 10
+sf <- 2
+pch <- 1
+r <- unw$r
+az <- unw$az
+
+#Unwrapped phase
+plot(
+  r,
+  az,
+  col = scale_colors(unw.var, cols , lmin = lmin, lmax = lmax),
+  pch = pch,
+  main = "Unwrapped point scatterers phase"
+)
 
 #Model as a function of height
 model_h_eq <- phase ~ z + I(z ** 2)
