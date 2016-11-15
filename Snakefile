@@ -158,7 +158,7 @@ rule all:
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
 #        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
-        expand('ipt/20150803_060519_stack_50_AAAl.{ext}', ext=['pint', 'phgt', 'pt.bmp'])
+        expand('ipt/20150803_060519_stack_50_AAAl.{ext}', ext=['pint', 'phgt', 'punw', 'pt.bmp'])
 #        "mli/20150803_060749_AAAl.mli",
 #        'geo/Dom.ls_map.tif'
 
