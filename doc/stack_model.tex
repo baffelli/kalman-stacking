@@ -1,0 +1,109 @@
+\documentclass{article}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\newcommand\state[3]{{#1}_{#2\vert#3}}
+
+\newcommand\posterior[2]{\state{#1}{#2}{#2}}
+
+\title{Linear Systems to Describe Interferogram Stacks}
+
+
+
+\begin{document}
+\maketitle
+\section{Linear Displacement Model}
+Consider the following displacement model that could describe an unstable slope or another moving feature:
+\begin{equation}
+	\mathbf{x_k} = \mathbf{F} \mathbf{x_{k-1}}
+\end{equation}
+The state variable $\mathbf{x_i}$ contains the model parameters, i.e displacement, velocity, acceleration and the matrix $\mathbf{F}$ describes the evolution of the parameters. At time $k$ the theoretical propagation phase of an idealized SLC image of the moving object is:
+\begin{equation}
+	z_k = \begin{bmatrix} \frac{4\pi}{\lambda} & 0 & \dots & 0\end{bmatrix} \mathbf{x_k}.
+\end{equation}
+\section{Single Reference Stack}
+If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\phi_{i}^{1}$ can be expressed as a function of the model output $z_k$:
+\begin{equation}
+	\phi_{i}^{1} = z_{i} - z_{i + 1}.
+\end{equation} 
+Where the superscript $^1$ indicates a lag-1 interferogram between subsequent SLCs.
+Using the model, the phase can be expressed as a function of the model state $\mathbf{x}$ as:
+\begin{equation}
+	\phi_{i}^1 = \mathbf{H} \left(\mathbf{x_{i}} - \mathbf{x_{i+1}}\right),
+\end{equation}
+or 
+\begin{equation}
+	\phi_{i}^1 = \mathbf{H} \left(\mathbf{x_i} - \mathbf{F}\mathbf{x_i}\right).
+\end{equation}
+or in a more compact form:
+\begin{equation}
+	\phi_{i}^1 =  \mathbf{H} \left(\mathbf{I} - \mathbf{F} \right) \mathbf{x_i}.
+\end{equation}
+Similarly, the interferogram between the $i-th$ slc and the $i+n-th$ slc can be expressed as:
+\begin{equation}
+	\phi_{i}^n =  \mathbf{H} \left(\mathbf{I} - \mathbf{F}^n\right) \mathbf{x_i}.
+\end{equation}
+Thus, a stack  $\mathbf{z_{i}^{stack}}$ of single reference interferograms of length $N_{stack}$, relative to time $i$ can be modeled from the state variable at time $i$ $\mathbf{x_{i}}$ as:
+\begin{equation}
+	\mathbf{z_{i}^{stack}} =\begin{bmatrix}
+	 	\mathbf{H} \left(\mathbf{I} - \mathbf{F}\right)\\
+	 	\vdots\\
+	 	\mathbf{H} \left(\mathbf{I} - \mathbf{F}^{N_{stack}}\right) 
+	\end{bmatrix}\mathbf{x_i} = \mathbf{H}^{stack} \mathbf{x_i}
+\end{equation}
+\section{Multi Reference Stack}
+A similar model can be used for a multi-reference stack, where all interferograms  are computed from a subset of $N_{stack}$ SLCs. Ordering them lexicographically by the times of the master and slave acquisitions, the stack is expressed as:
+\begin{equation}\label{eq:stack}
+	\begin{bmatrix}
+		z_{i} - z_{i+1}\\
+		z_{i+1} - z_{i+2}\\
+		\vdots\\
+		z_{i+N_{stack}} - z_{i+N_{stack} - 1}
+	\end{bmatrix},
+\end{equation}
+where $i$ is the index of the stack; representing a sort of "sliding window" of length $N_{stack}$ that is run over the slcs as the time runs.
+Notice that the self-interferograms, i.e all combinations where the master and the slave are the same SLC, were left out of the vector.
+As a function of $\mathbf{x_{i}}$, the state of the model at stack time $i$, the stack is expressed as:
+\begin{equation}\label{eq:stack_observation}
+	\mathbf{z_{i}^{stack}} =
+	\begin{bmatrix}
+	 	\mathbf{H} \left(\mathbf{I} -\mathbf{F} \right)\\
+	 	\mathbf{H} \left(\mathbf{F} -\mathbf{F}^2 \right)\\
+	 	\vdots\\
+	 	\mathbf{H} \left(\mathbf{F}^{N_{stack}} -\mathbf{F}^{N_{stack} - 1} \right)\\
+	\end{bmatrix}\mathbf{x_i} = \mathbf{H}^{stack} \mathbf{x_i}
+\end{equation}
+If only a subset of combinations is desired, the corresponding rows of $\mathbf{H}^{stack}$ can be selected, reducing the size of the matrix. Thus, the single reference model reduces to a special case of the multi-reference stack.
+\section{Kalman Filter for Stacking}
+The Kalman filter can be used to obtain posterior estimates of the displacement model parameters given  observed interferogram stacks. The following steps are run recursively, whenever new SLC data is available:
+\begin{itemize}
+	\item Predict: the prior state estimate at time $i$ i, $\state{\mathbf{\hat{x}}}{i}{i-1}$ is computed by propagating the  previous posterior state estimate $\state{\mathbf{\hat{x}}}{i-1}{i-1}$ with the model equation:
+	\begin{align}\label{eq:prediction}
+		&\state{\mathbf{\hat{x}}}{i}{i-1} = \mathbf{F} \state{\mathbf{\hat{x}}}{i-1}{i-1}\\
+		&\state{\mathbf{P}}{k}{k-1} = \mathbf{F} \state{\mathbf{P}}{k-1}{k-1} \mathbf{F}^\mathsf{T} + \mathbf{Q}_{k}
+	\end{align}
+	\item Update: when a new SLC is available, the stack index $i$ is advanced by one and the new stack is computed according to \autoref{eq:stack}. In Kalman filter terminology, the stack corresponds to the observation $\mathbf{z_i}$. Using the computed stack and the measurement equation of \autoref{eq:stack_observation}, the measurement residual  between the data and the predicted stack from the prior state is calculated:
+	\begin{equation}
+		\tilde{\mathbf{y}}_i = \mathbf{z_i} - \mathbf{H}^{stack} \state{\mathbf{\hat{x}}}{i}{i-1}
+	\end{equation}
+	The residual covariance is estimated using the prior covariance of \autoref{eq:prediction}  and the measurement of \autoref{eq:stack_observation}:
+	\begin{equation}
+		\mathbf{S}_i = \mathbf{H}^{stack} \state{\mathbf{P}}{i}{i-1}{\mathbf{H}^{stack}}^\mathsf{T}
+	\end{equation}
+	Using the residual, the Kalman gain matrix is determined:
+	\begin{equation}
+		\mathbf{K}_i = \state{\mathbf{P}}{i}{i-1}{\mathbf{H}^{stack}}^\mathsf{T}\mathbf{S}_i^{-1}
+	\end{equation}
+	The optimal gain weights the  combination between the prior state determined in the prediction step and the observation to produce the posterior state estimate, so that 
+	a noisier observation is given less weight and vice versa:
+	\begin{equation}
+		\state{\mathbf{\hat{x}}}{i}{i} = \state{\mathbf{\hat{x}}}{i}{i} + \mathbf{K}_i \tilde{\mathbf{y}}_i.
+	\end{equation}
+	The update of the covariance determines the posterior covariance of the state estimate $\state{\mathbf{\hat{x}}}{i}{i}$ using the Kalman gain and the prior covariance obtained in the the prediction step:
+	\begin{equation}
+	\state{\mathbf{P}}{i}{i} = \left(\mathbf{I} - \mathbf{K}_i\mathbf{H}^{stack}\right)\state{\mathbf{P}}{i}{i-1}
+	\end{equation}
+\end{itemize}
+Using this method, a new SLC image can be used to estimate updated displacement model parameter "online" using the previously estimated parameter and the stack formed using \autoref{eq:stack}.
+
+\end{document}
