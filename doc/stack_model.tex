@@ -13,13 +13,39 @@
 \begin{document}
 \maketitle
 \section{Linear Displacement Model}\label{sec:displacement_model}
-Consider the following displacement model that could describe an unstable slope or another moving feature:
+Consider the following discretized model to describe the displacement of a point in an unstable slope or another moving feature:
 \begin{equation}
-	\mathbf{x_i} = \mathbf{F} \mathbf{x}_{i-1}
+	\mathbf{x}_i = \mathbf{F}_i \mathbf{x}_{i-1}
 \end{equation}
-The state variable $\mathbf{x_i}$ contains the model parameters, i.e displacement, velocity, acceleration and the matrix $\mathbf{F}$ describes the evolution of the parameters. At time $i$ the theoretical propagation phase of a SLC pixel is:
+The state variable $\mathbf{x}_i$ contains the model parameters, i.e displacement, velocity, acceleration and the matrix $\mathbf{F}_i$ describes the evolution of the parameters. To begin with, we consider a simple uniform motion; where the state at any discrete time $k$ is:
 \begin{equation}
-	\phi_i = \begin{bmatrix} \frac{4\pi}{\lambda} & 0 & \dots & 0\end{bmatrix} \mathbf{x_i}.
+\mathbf{x}_k = 
+	\begin{bmatrix}
+		d_{k}\\
+		v_{k}
+	\end{bmatrix}
+\end{equation}
+where $d_{k}$ is the distance from the point to a (non-moving) reference point and $v_k$ is the velocity of the motion.
+In this situation, the state evolves from $i-1$ to $i$ as:
+\begin{equation}
+	\mathbf{x}_i = 
+		\begin{bmatrix}
+			d_{i}\\
+			v_{i}
+		\end{bmatrix} =
+		\begin{bmatrix}
+		1 & \Delta t\\
+		0 & 1
+		\end{bmatrix}
+		\begin{bmatrix}
+			d_{i-1}\\
+			v_{i-1}
+		\end{bmatrix}.
+\end{equation}
+Where $\Delta t$ is the duration of the time step between $i-1$ and $i$.\\
+At any time $i$, the theoretical propagation phase of a SLC pixel relative to the reference location is is:
+\begin{equation}
+	\phi_i = \begin{bmatrix} \frac{4\pi}{\lambda} & 0 \end{bmatrix} \mathbf{x}_i = \mathbf{H} \mathbf{x}_i
 \end{equation}
 \section{Single Reference Stack}
 If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\Delta\phi_{i}$ can be expressed as a function of the model output $\phi_i$:
@@ -28,26 +54,33 @@ If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the int
 \end{equation} 
 Using the linear model of \autoref{sec:displacement_model}, the interferometric phase difference can be expressed as a function of the model state $\mathbf{x}$ at times $i$ and $i+1$ as:
 \begin{equation}
-	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x_{i}} - \mathbf{x_{i+1}}\right),
+	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x}_i - \mathbf{x}_{i+1}\right),
 \end{equation}
 or 
 \begin{equation}
-	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x_i} - \mathbf{F}\mathbf{x_i}\right).
+	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x}_i - \mathbf{F}_{i+1}\mathbf{x}_i\right).
 \end{equation}
 or in a more compact form:
-\begin{equation}
-	\Delta\phi_{i,i+1} =  \mathbf{H} \left(\mathbf{I} - \mathbf{F} \right) \mathbf{x_i}.
+\begin{equation}\label{eq:output_step_1}
+	\Delta\phi_{i,i+1} =  \mathbf{H} \left(\mathbf{I} - \mathbf{F}_{i+1} \right) \mathbf{x_i}.
 \end{equation}
-Similarly, the interferogram between the $i-th$ slc and the $i+n-th$ slc can be expressed as:
+Notice that the matrix $\mathbf{F}$ depends on the index $i$; this allows to model for variable timesteps, where $\Delta t$ is not constant over the span of all acquisitions.
+Consequently,
+\begin{equation}\label{eq:output_step_2}
+	\Delta\phi_{i,i+2} =  \mathbf{H} \left(\mathbf{I} - \mathbf{F}_{i+2}\mathbf{F}_{i+1} \right) \mathbf{x_i}.
+\end{equation}
+By induction we then have that the interferogram between the $i-th$ and the $i+n-th$ SLC can be expressed as:
 \begin{equation}
-	\Delta\phi_{i,i+n} =  \mathbf{H} \left(\mathbf{I} - \mathbf{F}^n\right) \mathbf{x_i}.
+	\Delta\phi_{i,i+n} =  \mathbf{H} \left(\mathbf{I} - \prod_{k=i+n}^{i}\mathbf{F}_k\right) \mathbf{x_i}.
 \end{equation}
 Thus, a stack  $\Delta\mathbf{\Phi_{i}}$ of interferograms of length $N_{stack}$ referenced to acquisition $i$ can be modeled from the state variable at time $i$ $\mathbf{x_{i}}$ as:
 \begin{equation}
 	\Delta\mathbf{\Phi_{i}} =\begin{bmatrix}
-	 	\mathbf{H} \left(\mathbf{I} - \mathbf{F}\right)\\
+	 	\mathbf{H} \left(\mathbf{I} - \mathbf{F}_i\right)\\
 	 	\vdots\\
-	 	\mathbf{H} \left(\mathbf{I} - \mathbf{F}^{N_{stack}}\right) 
+	 	\mathbf{H} \left(\mathbf{I} - \prod_{k=i+n}^{i}\mathbf{F}_k\right)\\
+	 	\vdots\\
+	 	\mathbf{H} \left(\mathbf{I} -\prod_{k=i+N_{stack}}^{i}\mathbf{F}_k\right)
 	\end{bmatrix}\mathbf{x_i} = \mathbf{H}^{stack} \mathbf{x_i}
 \end{equation}
 \section{Multi Reference Stack}
@@ -59,42 +92,42 @@ A similar model can be used for a multi-reference stack, where we consider a sub
 			\phi_{i} - \phi_{i+1}\\
 			\phi_{i+1} - \phi_{i+2}\\
 			\vdots\\
-			\phi_{i+k} - \phi_{i+l}\\
+			\phi_{i+j} - \phi_{i+l}\\
 			\vdots\\
 			\phi_{i+N_{stack}} - \phi_{i+N_{stack} - 1}
 		\end{bmatrix}\\
-		\forall k,l : k < l < N_{stack}.
+		\forall j,l : j < l < N_{stack}.
 		\end{aligned}
 \end{equation}
 This can be expressed as a matrix-vector multiplication:
 \begin{equation}
 	 \Delta\mathbf{\Phi_{i}} = \mathbf{A} \mathbf{\Phi_{i}}.
 \end{equation}
-where $\mathbf{\Phi_{i}}$ is the vector of SLC phases and $\mathbf{A}$ is the $N_{stack}\times N_{slc}$ incidence matrix of interferograms, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack\cite{Agram2015}.\\
+where $\mathbf{\Phi_{i}}$ is the vector of SLC phases and $\mathbf{A}$ is the $N_{stack}\times N_{slc}$ incidence matrix of interferograms, with $A_{m,j} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack\cite{Agram2015}.\\
 Considering again the linear model of \autoref{sec:displacement_model}, the SLC vector  $\mathbf{\Phi_{i}}$ can be expressed from $\mathbf{x_i}$:
 \begin{equation}
 	 \mathbf{\Phi_{i}} = 
 	 \begin{bmatrix}
 	 	\mathbf{H}\\
 	 	\vdots\\
-	 	\mathbf{H} \mathbf{F}^l\\
+	 	\mathbf{H} \prod_{k=i+j}^{i}\mathbf{F}_k\\
 	 	\vdots\\
-	 	\mathbf{H} \mathbf{F}^{N_{slc}}
+	 	\mathbf{H} \prod_{k=i+N_{slc}}^{i}\mathbf{F}_k
 	 \end{bmatrix} \mathbf{x_i}.
 \end{equation}
 from this, the stack $\Delta\mathbf{\Phi_{i}}$ is expressed as:
 \begin{equation}\label{eq:stack_output}
 	\Delta\mathbf{\Phi_{i}} = \mathbf{A} 
-		 \begin{bmatrix}
-		 	\mathbf{H}\\
-		 	\vdots\\
-		 	\mathbf{H} \mathbf{F}^l\\
-		 	\vdots\\
-		 	\mathbf{H} \mathbf{F}^{N_{slc}}
-		 \end{bmatrix} \mathbf{x_i} = \mathbf{\Pi} \mathbf{x_i}
+			 \begin{bmatrix}
+			 	\mathbf{H}\\
+			 	\vdots\\
+			 	\mathbf{H} \prod_{k=i+j}^{i}\mathbf{F}_k\\
+			 	\vdots\\
+			 	\mathbf{H} \prod_{k=i+N_{slc}}^{i}\mathbf{F}_k
+			 \end{bmatrix}\mathbf{x_i} = \mathbf{\Pi} \mathbf{x_i},
 \end{equation}
 where $i$ is the index of the stack; representing a sort of "sliding window" of length $N_{stack}$ that is run over the slcs as the time runs.
-Thus, the stack at time $i$ can be considered the output of a new linear system where the dynamics are described by the same matrix $\mathbf{F}$ and the output is given by the augmented output matrix $\mathbf{\Pi}$
+Thus, the stack at time $i$ can be considered the output of a linear system where the dynamics are described by the matrix $\mathbf{F}_i$ with $\Delta t$ the time interval between the first and the last SLC in the stack, while the output is given by the matrix $\mathbf{\Pi}$
 \section{Kalman Filter for Stacking}
 The Kalman filter can be used to obtain posterior estimates of the displacement model parameters given  observed interferogram stacks. The following steps are run recursively, whenever new SLC data is available:
 \begin{itemize}

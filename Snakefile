@@ -158,7 +158,7 @@ rule all:
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
 #        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
-        expand('ipt/20150803_060519_stack_50_AAAl.{ext}', ext=['pint', 'phgt', 'punw', 'pt.bmp'])
+        expand('ipt/20150803_060519_stack_200_AAAl.{ext}', ext=['pvel'])
 #        "mli/20150803_060749_AAAl.mli",
 #        'geo/Dom.ls_map.tif'
 
@@ -183,6 +183,8 @@ rule correct_squint_in_slc:
 			raw_desq = gpf.correct_squint_in_SLC(slc, squint_rate=params.squint_rate)
 			print(type(raw_desq))
 			raw_desq.tofile(output.corr_par, output.corr)
+
+
 
 
 
@@ -692,6 +694,19 @@ rule variogram:
 #    input:
 
 
+
+##Try kalman filtererererer
+rule kalman:
+    output:
+        pv =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pvel',
+    input:
+        slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)),
+        slc_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards)),
+        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist'
+    script:
+        'scripts/kalman.py'
+
+
 ##Apply the deformation model
 rule def_mod:
     output:
@@ -1012,7 +1027,6 @@ rule kriging_inputs:
         plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist{maskname}',
     script:
         'scripts/prepare_kriging_inputs.py'
-
 
 
 
