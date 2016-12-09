@@ -22,11 +22,11 @@ def F_model(dt):
 def H_stack(f_fun, H_model, itab, t_vector):
     F_aug = []
     A = intfun.itab_to_incidence_matrix(itab)
-    print(itab)
-    print(A)
+    print(len(itab))
+    print(A.shape)
     F = np.eye(2)
     t_start  = t_vector[0]
-    for idx_t, t in enumerate(t_vector[::]):
+    for idx_t, t in enumerate(t_vector[1::]):
         t_end = t_vector[idx_t]
         dt = t_end - t_start
         F_model = f_fun(dt)
