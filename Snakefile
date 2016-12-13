@@ -158,7 +158,7 @@ rule all:
 #        expand("diff/20150803_120249_AAAl_20150803_120519_AAAl.{ft}",ft=['aps_ref']),
 #        expand('stack/20150803_060519_stacl_{n}_AAAl.variogram', n=[10,20]),
 #        expand('ipt/20150803_120249_AAAl_20150803_120519_AAAl.{ext}_{location}.csv', ext=['pint', 'punw', 'phgt'], location=['stable', 'grid']),
-        expand('ipt/20150803_060519_stack_200_AAAl.{ext}', ext=['pvel'])
+        expand('kalman/20150803_060519_AAAl.x_10')
 #        "mli/20150803_060749_AAAl.mli",
 #        'geo/Dom.ls_map.tif'
 
@@ -694,17 +694,23 @@ rule variogram:
 #    input:
 
 
+def format_kalman_step(pattern, wildcards):
+    wildcards_copy = dict(wildcards)
+    wildcards_copy['i'] = int(wildcards_copy['i']) - 1
+    return pattern.format( **wildcards_copy)
 
-##Try kalman filtererererer
+##Kalman filter step
 rule kalman:
     output:
-        pv =  'ipt/{start_dt}_stack_{nifgrams}_{chan}.pvel',
+        x =  'kalman/{start_dt}_{chan}.x_{i}',
+        P =  'kalman/{start_dt}_{chan}.P_{i}',
     input:
-        slc_par_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec.par', wildcards)),
-        slc_names = (lambda wildcards: stack.all_single('slc_desq/{date}_{chan}.slc_dec', wildcards)),
-        plist = 'ipt/{start_dt}_stack_{nifgrams}_{chan}.plist'
+        x_posterior =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.x_{i}', wildcards),
+        P_posterior = lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.P_{i}', wildcards),
     script:
         'scripts/kalman.py'
+
+rule
 
 
 ##Apply the deformation model

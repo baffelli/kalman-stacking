@@ -10,15 +10,6 @@
 			"z":		300,
 			"decimated_sample_spacing":		0.1
 	},
-	"list_of_reflectors": [
-		{"ridx":32, "azidx":5192,"type":"cubic", "side":0.4},
-		{"ridx":830, "azidx":3503,"type":"triangular", "side":0.4},
-		{"ridx":1032, "azidx":5703,"type":"cubic", "side":0.4},
-		{"ridx":1051, "azidx":5617,"type":"triangular", "side":0.4},
-		{"ridx":1331, "azidx":1490,"type":"cubic", "side":0.4},
-		{"ridx":3518, "azidx":3545,"type":"triangular", "side":0.4}
-							],
-	"crosspolarizer_index": [3409, 2790, "o"],
     "channel_mapping":{
               "TX_A_position": 0,
               "TX_B_position": 0.125,
@@ -61,16 +52,15 @@
 		"msr_min": 1.8,
 		"pwr_min": 0.95
 	},
+	"kalman":
+	{
+		"nstack": 5
+	},
 	"aps":				{
 		"filter_radius": 50
 	},
 	"unwrapping":		{
 		"coherence_threshold":	0.7
-	},
-
-	"squint_rate":			{
-			"rwin":		5,
-			"azwin":	250
 	},
 	"calibration":			{
 			"reflector_index":		1,
