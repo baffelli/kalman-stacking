@@ -68,9 +68,9 @@ def kalman(input, output, threads, config, params, wildcards):
             slc_par = gpf.par_to_dict(input.slc_par_names[idx_slc])
             acquisition_times.append(slc_par.start_time)
         H = H_stack(F_model, H_d, itab, acquisition_times)
-        plt.plot(H[:,1])
-        plt.show()
+        F_system = F_model(acquisition_times[-1] - acquisition_times[0])
         print(H)
+        print(F_system)
 
 
 

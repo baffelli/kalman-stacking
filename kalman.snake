@@ -1,0 +1,13 @@
+
+
+rule predict:
+    input:
+        state = lambda wildcards: "{name}.x_{j}".format(name=wildcards.name, j=int(wildcards.i) - 1)
+        F = lambda wildcards =  "{name}.F_{i}"
+        covariance = lambda wildcards: "{name}.P_{j}".format(name=wildcards.name, j=int(wildcards.i) - 1)
+        model_uncertainity =  "{name}.Q_{i}"
+    output:
+        predicted_state = "{name}.x_{i}",
+        predicted_covariance = "{name}.P_{i}",
+    script:
+        'scripts/'
