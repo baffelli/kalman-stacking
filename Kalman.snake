@@ -28,7 +28,7 @@ def select_date_range(string_dates, date_start, date_end):
     dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
     dt_start = dt.datetime.strptime(date_start, dtfmt)
     dt_end = dt.datetime.strptime(date_end, dtfmt)
-    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start < date < dt_end]
+    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start <= date <= dt_end]
     return valid_dates
 
 def select_nth_previous(string_dates, date_end, n):
@@ -66,6 +66,9 @@ class StackHelper:
         stop_dt = select_n_dates(self.all_dates, start_dt, last_slc_index)[-1]
         #now select range
         valid_slcs = select_date_range(self.all_dates, start_dt, stop_dt)
+        print("current stack date: {start_dt}".format(start_dt= start_dt))
+        print("last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
+        print("slcs in between: {}".format(valid_slcs) )
         #Compute ifgrams in itab
         ifgrams = []
         for master, slave, *rest in self.itab:
@@ -85,7 +88,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_3')
+        expand('kalman/20150803_060519_AAAl.x_10')
 
 
 
