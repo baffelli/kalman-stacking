@@ -54,7 +54,8 @@
 	},
 	"kalman":
 	{
-		"nstack": 5
+		"nstack": 5,
+        "nstates": 2
 	},
 	"aps":				{
 		"filter_radius": 50

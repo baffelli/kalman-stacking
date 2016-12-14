@@ -1,19 +1,24 @@
 from pyrat.diff import kalman as ka
 import pyrat.diff.intfun as intfun
+import pyrat.fileutils.gpri_files as gpf
 import numpy as np
 
 def init_kalman(input, output, threads, config, params, wildcards):
     #Create itab and save it
-    print(config)
     nstack = config['kalman']['nstack']
+    nstates = config['kalman']['nstates']
     itab = intfun.Itab(nstack, window=config['ptarg']['window'], step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref'])
     itab.tofile(output.itab)
+    #Load mli par
+    mli_par = gpf.par_to_dict(input.mli_par)
+    ifgram_shape = (mli_par.range_samples, mli_par.azimuth_lines)
     #Save initial filter state
-    x = np.zeros(2)
-    np.savetxt(output.x, x)
+    x = np.zeros(ifgram_shape + (nstates,))
+    x[:,:,1] = 1
+    x.tofile(output.x)
     #Save initial covariance
-    P = np.eye(len(x))
-    np.savetxt(output.P, P)
+    P = np.tile(np.eye(nstates) * 1e-2, ifgram_shape + (1,1))
+    P.tofile(output.P)
 
 
 

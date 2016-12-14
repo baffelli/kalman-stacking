@@ -43,7 +43,7 @@ def select_nth_previous(string_dates, date_end, n):
 def select_n_dates(string_dates, date_start, n_dates):
     dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
     dt_start = dt.datetime.strptime(date_start, dtfmt)
-    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start < date][0:int(n_dates)]
+    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start <= date][:int(n_dates):]
     return valid_dates
 
 
@@ -55,10 +55,16 @@ class StackHelper:
         self.itab = intfun.Itab(config['kalman']['nstack'], window=config['kalman']['nstack'],
          step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref']).tab
 
+    def current_valid_date(self, wildcards, pattern):
+       #return the nearest valid date given the "start_dt" wildcard
+      start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, 1)
+      wc = dict(wildcards)
+      wc['start_dt'] = start_dt_list[0]
+      return pattern.format(**wc)
 
     def next_stack_input(self, wildcards, pattern):
         #select next starting slc
-        start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, wildcards.i)
+        start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, int(wildcards.i))
         start_dt = start_dt_list[-1]
         #maxmium window length gives the last slc
         last_slc_index = np.max(np.array(self.itab)[:, 0:2]) + 1
@@ -66,9 +72,10 @@ class StackHelper:
         stop_dt = select_n_dates(self.all_dates, start_dt, last_slc_index)[-1]
         #now select range
         valid_slcs = select_date_range(self.all_dates, start_dt, stop_dt)
-        print("current stack date: {start_dt}".format(start_dt= start_dt))
-        print("last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
-        print("slcs in between: {}".format(valid_slcs) )
+        print("Kalman Filter start date: {start_dt}".format(start_dt= wildcards.start_dt))
+        print("Filter iteration index: {i}".format(i= wildcards.i))
+        print("Last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
+        print("Slc in stack: {}".format(valid_slcs))
         #Compute ifgrams in itab
         ifgrams = []
         for master, slave, *rest in self.itab:
@@ -88,7 +95,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_10')
+        expand('kalman/20150803_060519_AAAl.x_4')
 
 
 
@@ -523,6 +530,8 @@ rule kalman_start:
         x =  'kalman/{start_dt}_{chan}.x_{i}',
         itab = 'kalman/{start_dt}_{chan}.pitab_{i}',
         P = 'kalman/{start_dt}_{chan}.P_{i}'
+    input:
+        mli_par = lambda wildcards: stack.current_valid_date(wildcards, 'mli/{start_dt}_{chan}.mli.par')
     wildcard_constraints:
         i = '0'
     script:
