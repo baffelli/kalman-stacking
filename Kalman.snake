@@ -62,7 +62,8 @@ class StackHelper:
       wc['start_dt'] = start_dt_list[0]
       return pattern.format(**wc)
 
-    def next_stack_input(self, wildcards, pattern):
+
+    def next_stack_dates(self, wildcards):
         #select next starting slc
         start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, int(wildcards.i))
         start_dt = start_dt_list[-1]
@@ -71,11 +72,20 @@ class StackHelper:
         #find the last slc
         stop_dt = select_n_dates(self.all_dates, start_dt, last_slc_index)[-1]
         #now select range
-        valid_slcs = select_date_range(self.all_dates, start_dt, stop_dt)
+        valid_dates = select_date_range(self.all_dates, start_dt, stop_dt)
         print("Kalman Filter start date: {start_dt}".format(start_dt= wildcards.start_dt))
         print("Filter iteration index: {i}".format(i= wildcards.i))
         print("Last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
-        print("Slc in stack: {}".format(valid_slcs))
+        print("Slc in stack: {}".format(valid_dates))
+        return valid_dates
+
+    def next_stack_single(self, wildcards, pattern):
+        valid_slcs = self.next_stack_dates(wildcards)
+        return [pattern.format(datetime=s, chan=wildcards.chan) for s in valid_slcs]
+
+
+    def next_stack_combinations(self, wildcards, pattern):
+        valid_slcs = self.next_stack_dates(wildcards)
         #Compute ifgrams in itab
         ifgrams = []
         for master, slave, *rest in self.itab:
@@ -516,8 +526,9 @@ rule kalman:
         x =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.x_{i}', wildcards),
         P =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.P_{i}', wildcards),
         itab = 'kalman/{start_dt}_{chan}.pitab_0',
-        unw = lambda wildcards: stack.next_stack_input(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
-        diff_pars =  lambda wildcards: stack.next_stack_input(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
+        unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
+        diff_pars = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
+        mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',#reference coordinate
     wildcard_constraints:
         i = '\d+'#only positive indices

@@ -29,7 +29,7 @@ def kalman(input, output, threads, config, params, wildcards):
     #Create itab
     itab = intfun.Itab.fromfile(input.itab)
     #Read in the input stack
-    stack = ifgrams.Stack(input.diff_pars, input.unw, input.itab)
+    stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab)
     #load kalman state
     nstates = config['kalman']['nstates']
     ifgram_shape = stack[0].shape
@@ -46,12 +46,10 @@ def kalman(input, output, threads, config, params, wildcards):
     #H matrix
     phase_factor = np.pi * 4 / gpf.lam(stack[0].master_par.radar_frequency)
     H_m = np.array([1,0]) * phase_factor
-    H = intfun.H_stack(intfun.F_model, H_m , itab,  master_times)
+    H = stack.H_stack(intfun.F_model, H_m)
     #Covariance matrix
     R = np.eye(H.shape[0]) * 1e-3 * phase_factor
     Q = np.eye(2) * 1e-5
-    print(z.shape)
-    print(H.shape)
     filter = ka.KalmanFilter(2, H.shape[0], H=H[None,:,:], F=F[None,:,:], R=R[None,:,:], x0=x, Q=Q[None,:,:], P=P)
     #Prediction step
     filter.predict()
@@ -59,6 +57,9 @@ def kalman(input, output, threads, config, params, wildcards):
     filter.update(z)
     filter.x.tofile(output.x)
     filter.P.tofile(output.P)
+    #Display
+    plt.imshow(x.reshape(ifgram_shape + (nstates,))[:,:,0])
+    plt.show()
 
 
 
