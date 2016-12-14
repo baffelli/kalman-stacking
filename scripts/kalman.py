@@ -34,7 +34,7 @@ def kalman(input, output, threads, config, params, wildcards):
     nstates = config['kalman']['nstates']
     ifgram_shape = stack[0].shape
     #Reshape to npixels * size
-    z = np.array(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
+    z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
     x = np.fromfile(input.x).reshape((np.prod(ifgram_shape),) + (nstates,))
     P = np.fromfile(input.P).reshape((np.prod(ifgram_shape),) + (nstates,nstates))
     #Read mli parameters of first and last in stack
@@ -58,7 +58,7 @@ def kalman(input, output, threads, config, params, wildcards):
     filter.x.tofile(output.x)
     filter.P.tofile(output.P)
     #Display
-    plt.imshow(x.reshape(ifgram_shape + (nstates,))[:,:,0])
+    plt.imshow(x.reshape(ifgram_shape + (nstates,))[:,:,1])
     plt.show()
 
 

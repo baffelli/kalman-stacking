@@ -105,7 +105,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_4')
+        expand('kalman/20150803_060519_AAAl.x_16')
 
 
 

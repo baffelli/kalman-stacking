@@ -13,11 +13,11 @@ def init_kalman(input, output, threads, config, params, wildcards):
     mli_par = gpf.par_to_dict(input.mli_par)
     ifgram_shape = (mli_par.range_samples, mli_par.azimuth_lines)
     #Save initial filter state
-    x = np.zeros(ifgram_shape + (nstates,))
-    x[:,:,1] = 1
+    x = np.zeros((np.prod(ifgram_shape),) + (nstates,))
+    x[:,1] = 1
     x.tofile(output.x)
     #Save initial covariance
-    P = np.tile(np.eye(nstates) * 1e-2, ifgram_shape + (1,1))
+    P = np.tile(np.eye(nstates) * 1e-2, (np.prod(ifgram_shape),) + (1,1))
     P.tofile(output.P)
 
 
