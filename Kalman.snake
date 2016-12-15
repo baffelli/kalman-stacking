@@ -105,7 +105,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_16')
+        expand('kalman/20150803_060519_AAAl.x_60')
 
 
 
@@ -522,6 +522,7 @@ rule kalman:
     output:
         x =  'kalman/{start_dt}_{chan}.x_{i}',
         P =  'kalman/{start_dt}_{chan}.P_{i}',
+        fig = 'kalman/{start_dt}_{chan}_{i}.pdf',
     input:
         x =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.x_{i}', wildcards),
         P =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.P_{i}', wildcards),

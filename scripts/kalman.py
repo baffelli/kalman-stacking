@@ -15,7 +15,7 @@ import json
 import pyrat.diff.core as ifgrams
 
 
-
+import pyrat.visualization.visfun as vf
 
 def kalman(input, output, threads, config, params, wildcards):
     #Load reference position
@@ -48,8 +48,8 @@ def kalman(input, output, threads, config, params, wildcards):
     H_m = np.array([1,0]) * phase_factor
     H = stack.H_stack(intfun.F_model, H_m)
     #Covariance matrix
-    R = np.eye(H.shape[0]) * 1e-3 * phase_factor
-    Q = np.eye(2) * 1e-5
+    R = np.eye(H.shape[0]) * 2 * phase_factor + np.ones((H.shape[0],H.shape[0])) * 0.2
+    Q = np.eye(2) * 1e-6
     filter = ka.KalmanFilter(2, H.shape[0], H=H[None,:,:], F=F[None,:,:], R=R[None,:,:], x0=x, Q=Q[None,:,:], P=P)
     #Prediction step
     filter.predict()
@@ -58,8 +58,30 @@ def kalman(input, output, threads, config, params, wildcards):
     filter.x.tofile(output.x)
     filter.P.tofile(output.P)
     #Display
-    plt.imshow(x.reshape(ifgram_shape + (nstates,))[:,:,1])
-    plt.show()
+    seconds_to_day = 24 * 60 * 60
+    f, (ax_d, ax_v, ax_c) = plt.subplots(1,3)
+    asp = 1/3
+    # ax_z.imshow(z.reshape(ifgram_shape +  (len(stack.stack),))[:,:,0], aspect=asp)
+    # ax_z.set_title('Unwrapped interferogram')
+    displacement = x.reshape(ifgram_shape + (nstates,))[:,:,0]
+    displacement_variance = P.reshape(ifgram_shape + (nstates,nstates))[:,:,0,0]
+    print(displacement_variance)
+    rgb = vf.disp_value_and_variance(displacement, displacement_variance, var_tresh=0.2)
+    cax = ax_d.imshow(displacement, vmin=-2e-1, vmax=2e-1, aspect=asp,  cmap='RdBu_r')
+    f.colorbar(cax, ax=ax_d)
+    ax_d.set_title('Cumulative displacement [m]')
+    velocity = x.reshape(ifgram_shape + (nstates,))[:,:,1] * seconds_to_day
+    velocity_variance = P.reshape(ifgram_shape + (nstates,nstates))[:,:,1,1] * seconds_to_day**2
+    rgb = vf.disp_value_and_variance(velocity, velocity_variance, var_tresh=0.2, vmin=-0.5, vmax=0.5)
+    cax = ax_v.imshow(velocity, aspect=asp, vmin=-2, vmax=2, cmap='RdBu_r')
+    f.colorbar(cax, ax=ax_v)
+    ax_v.set_title('Displacement velocity [m/day]')
+
+    #correlation
+    correlation = P.reshape(ifgram_shape + (nstates, nstates))[:, :, 1, 0] /(P.reshape(ifgram_shape + (nstates, nstates))[:, :, 0, 0] *P.reshape(ifgram_shape + (nstates, nstates))[:, :, 1, 1] )
+    ax_c.imshow(correlation,vmin=0, vmax=1)
+    # plt.show()
+    f.savefig(output.fig)
 
 
 
