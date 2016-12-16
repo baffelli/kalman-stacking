@@ -36,8 +36,8 @@ def kalman(input, output, threads, config, params, wildcards):
     #Reshape to npixels * size
     z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
     #Sample covariance of the atmosphere
-    R_samp = np.einsum('...i,...j,...ij',z,z.conj()).reshape(ifgram_shape +  (len(stack.stack),len(stack.stack)))
-    
+    R_samp = np.einsum('...i,...j->...ij',z,z.conj()).reshape(ifgram_shape +  (len(stack.stack),len(stack.stack)))
+
     plt.imshow(R_samp[:,:,2,0])
 
     x = np.fromfile(input.x).reshape((np.prod(ifgram_shape),) + (nstates,))
