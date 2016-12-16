@@ -35,6 +35,11 @@ def kalman(input, output, threads, config, params, wildcards):
     ifgram_shape = stack[0].shape
     #Reshape to npixels * size
     z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
+    #Sample covariance of the atmosphere
+    R_samp = np.einsum('...i,...j,...ij',z,z.conj()).reshape(ifgram_shape +  (len(stack.stack),len(stack.stack)))
+    
+    plt.imshow(R_samp[:,:,2,0])
+
     x = np.fromfile(input.x).reshape((np.prod(ifgram_shape),) + (nstates,))
     P = np.fromfile(input.P).reshape((np.prod(ifgram_shape),) + (nstates,nstates))
     #Read mli parameters of first and last in stack
@@ -59,7 +64,7 @@ def kalman(input, output, threads, config, params, wildcards):
     filter.P.tofile(output.P)
     #Display
     seconds_to_day = 24 * 60 * 60
-    f, (ax_d, ax_v, ax_c) = plt.subplots(1,3)
+    f, (ax_d, ax_v) = plt.subplots(1,2)
     asp = 1/3
     # ax_z.imshow(z.reshape(ifgram_shape +  (len(stack.stack),))[:,:,0], aspect=asp)
     # ax_z.set_title('Unwrapped interferogram')
@@ -76,12 +81,13 @@ def kalman(input, output, threads, config, params, wildcards):
     cax = ax_v.imshow(velocity, aspect=asp, vmin=-2, vmax=2, cmap='RdBu_r')
     f.colorbar(cax, ax=ax_v)
     ax_v.set_title('Displacement velocity [m/day]')
-
-    #correlation
-    correlation = P.reshape(ifgram_shape + (nstates, nstates))[:, :, 1, 0] /(P.reshape(ifgram_shape + (nstates, nstates))[:, :, 0, 0] *P.reshape(ifgram_shape + (nstates, nstates))[:, :, 1, 1] )
-    ax_c.imshow(correlation,vmin=0, vmax=1)
+    #Times of first and last slc
+    first_time =  stack[0].master_time
+    last_time = stack[-1].slave_time
+    title = "Stack on {} between {} and {}".format(first_time.date(), first_time.time(), last_time.time())
+    f.suptitle(title)
     # plt.show()
-    f.savefig(output.fig)
+    f.savefig(output.fig, dpi=200)
 
 
 

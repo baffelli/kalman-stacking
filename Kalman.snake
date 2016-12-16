@@ -528,6 +528,7 @@ rule kalman:
         P =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.P_{i}', wildcards),
         itab = 'kalman/{start_dt}_{chan}.pitab_0',
         unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
+        cc = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.cc'),
         diff_pars = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
         mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',#reference coordinate
