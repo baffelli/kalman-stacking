@@ -9,6 +9,8 @@ import pyrat.fileutils.gpri_files as gpf
 import os
 import matplotlib.colors as cols
 
+import pyrat.core.corefun as cf
+
 import pyrat.geo.geofun as gf
 import json
 
@@ -36,10 +38,12 @@ def kalman(input, output, threads, config, params, wildcards):
     #Reshape to npixels * size
     z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
     #Sample covariance of the atmosphere
-    R_samp = np.einsum('...i,...j->...ij',z,z.conj()).reshape(ifgram_shape +  (len(stack.stack),len(stack.stack)))
-
-    plt.imshow(R_samp[:,:,2,0])
-
+    R_samp = np.einsum('...i,...j->...ij',z,z.conj()).reshape(ifgram_shape + 2*(len(stack.stack),))
+    R_samp = cf.smooth(R_samp, [5,5,1,1])
+    print(ifgram_shape)
+    print(R_samp.shape)
+    R_samp = R_samp.reshape((np.prod(ifgram_shape),) + (len(stack.stack),len(stack.stack))) +  (np.eye(len(stack.stack))*1e-2)[None,:,:]
+    #Load previous state and posterior covariance
     x = np.fromfile(input.x).reshape((np.prod(ifgram_shape),) + (nstates,))
     P = np.fromfile(input.P).reshape((np.prod(ifgram_shape),) + (nstates,nstates))
     #Read mli parameters of first and last in stack
@@ -55,7 +59,7 @@ def kalman(input, output, threads, config, params, wildcards):
     #Covariance matrix
     R = np.eye(H.shape[0]) * 2 * phase_factor + np.ones((H.shape[0],H.shape[0])) * 0.2
     Q = np.eye(2) * 1e-6
-    filter = ka.KalmanFilter(2, H.shape[0], H=H[None,:,:], F=F[None,:,:], R=R[None,:,:], x0=x, Q=Q[None,:,:], P=P)
+    filter = ka.KalmanFilter(2, H.shape[0], H=H[None,:,:], F=F[None,:,:], R=R_samp, x0=x, Q=Q[None,:,:], P=P)
     #Prediction step
     filter.predict()
     #Update

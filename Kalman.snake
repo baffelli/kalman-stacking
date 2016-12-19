@@ -73,10 +73,10 @@ class StackHelper:
         stop_dt = select_n_dates(self.all_dates, start_dt, last_slc_index)[-1]
         #now select range
         valid_dates = select_date_range(self.all_dates, start_dt, stop_dt)
-        print("Kalman Filter start date: {start_dt}".format(start_dt= wildcards.start_dt))
-        print("Filter iteration index: {i}".format(i= wildcards.i))
-        print("Last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
-        print("Slc in stack: {}".format(valid_dates))
+#        print("Kalman Filter start date: {start_dt}".format(start_dt= wildcards.start_dt))
+#        print("Filter iteration index: {i}".format(i= wildcards.i))
+#        print("Last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
+#        print("Slc in stack: {}".format(valid_dates))
         return valid_dates
 
     def next_stack_single(self, wildcards, pattern):
@@ -105,7 +105,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_60')
+        expand('kalman/20150803_060519_AAAl.x_2')
 
 
 
