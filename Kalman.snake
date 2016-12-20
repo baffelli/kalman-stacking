@@ -96,6 +96,7 @@ class StackHelper:
 
 
 
+
 include: pyrat.rules['raw_to_slc']
 include: pyrat.rules['geocoding']
 
@@ -105,7 +106,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_2')
+        expand('kalman/20150803_060519_AAAl.x_5')
 
 
 
@@ -510,45 +511,74 @@ rule diff_to_map:
 
 
 
-ruleorder: kalman_start > kalman
 
-def format_kalman_step(pattern, wildcards):
-    wildcards_copy = dict(wildcards)
-    wildcards_copy['i'] = int(wildcards_copy['i']) - 1
-    return pattern.format( **wildcards_copy)
-
-##Kalman filter step
-rule kalman:
+rule kalman_inputs:
     output:
-        x =  'kalman/{start_dt}_{chan}.x_{i}',
-        P =  'kalman/{start_dt}_{chan}.P_{i}',
-        fig = 'kalman/{start_dt}_{chan}_{i}.pdf',
+        z = 'kalman/{start_dt}_{chan}.z_{i}',
+        H = 'kalman/{start_dt}_{chan}.H_{i}',
     input:
-        x =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.x_{i}', wildcards),
-        P =  lambda wildcards: format_kalman_step('kalman/{start_dt}_{chan}.P_{i}', wildcards),
-        itab = 'kalman/{start_dt}_{chan}.pitab_0',
-        unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
-        cc = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.cc'),
-        diff_pars = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
-        mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
-        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',#reference coordinate
-    wildcard_constraints:
-        i = '\d+'#only positive indices
-    script:
-        'scripts/kalman.py'
+        unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.unw')
 
-#generate the initial state
-rule kalman_start:
-    output:
-        x =  'kalman/{start_dt}_{chan}.x_{i}',
-        itab = 'kalman/{start_dt}_{chan}.pitab_{i}',
-        P = 'kalman/{start_dt}_{chan}.P_{i}'
-    input:
-        mli_par = lambda wildcards: stack.current_valid_date(wildcards, 'mli/{start_dt}_{chan}.mli.par')
-    wildcard_constraints:
-        i = '0'
-    script:
-        'scripts/init_kalman.py'
+
+
+
+#
+#def format_kalman_step(pattern, wildcards):
+#    wildcards_copy = dict(wildcards)
+#    wildcards_copy['i'] = int(wildcards_copy['i']) - 1
+#    return pattern.format( **wildcards_copy)
+##
+
+
+#rule kalman_smoother:
+#    output:
+#        x =  'kalman/{start_dt}_{chan}.x_{i}_sm',
+#        P =  'kalman/{start_dt}_{chan}.P_{i}_sm',
+#    input:
+#
+##        unw = lambda wildcards: stack.kalman_smoother_pair_inputs(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
+###        cc = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.cc'),
+##        diff_pars = lambda wildcards: stack.kalman_smoother_pair_inputs(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
+##        mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
+##        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',#reference coordinate
+
+
+#ruleorder: kalman_start > kalman
+#
+###Kalman filter step
+#rule kalman:
+#    output:
+#        x =  'kalman/{start_dt}_{chan}.x_{i}',
+#        P =  'kalman/{start_dt}_{chan}.P_{i}',
+#        fig = 'kalman/{start_dt}_{chan}_{i}.pdf',
+#    input:
+##        z = 'kalman/{start_dt}_{chan}.z_{i}',
+##        H = 'kalman/{start_dt}_{chan}.H_{i}'
+#        x =  lambda wildcards: format_kalman_inputs('kalman/{start_dt}_{chan}.x_{i}', wildcards),
+#        P =  lambda wildcards: format_kalman_inputs('kalman/{start_dt}_{chan}.P_{i}', wildcards),
+#        itab = 'kalman/{start_dt}_{chan}.pitab_0',
+#        unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
+#        cc = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.cc'),
+#        diff_pars = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
+#        mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
+#        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',#reference coordinate
+#    wildcard_constraints:
+#        i = '\d+'#only positive indices
+#    script:
+#        'scripts/kalman.py'
+#
+###generate the initial state
+#rule kalman_start:
+#    output:
+#        x =  'kalman/{start_dt}_{chan}.x_{i}',
+#        itab = 'kalman/{start_dt}_{chan}.pitab_{i}',
+#        P = 'kalman/{start_dt}_{chan}.P_{i}'
+#    input:
+#        mli_par = lambda wildcards: stack.current_valid_date(wildcards, 'mli/{start_dt}_{chan}.mli.par')
+#    wildcard_constraints:
+#        i = '0'
+#    script:
+#        'scripts/init_kalman.py'
 
 
 
