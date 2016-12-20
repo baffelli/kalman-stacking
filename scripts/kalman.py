@@ -32,24 +32,16 @@ def kalman(input, output, threads, config, params, wildcards):
     itab = intfun.Itab.fromfile(input.itab)
     #Read in the input stack
     stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab)
-    #load kalman state
+    #get number of states
     nstates = config['kalman']['nstates']
     ifgram_shape = stack[0].shape
     #Reshape to npixels * size
     z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
-    #Sample covariance of the atmosphere
-    R_samp = np.einsum('...i,...j->...ij',z,z.conj()).reshape(ifgram_shape + 2*(len(stack.stack),))
-    R_samp = cf.smooth(R_samp, [5,5,1,1])
-    print(ifgram_shape)
-    print(R_samp.shape)
-    R_samp = R_samp.reshape((np.prod(ifgram_shape),) + (len(stack.stack),len(stack.stack))) +  (np.eye(len(stack.stack))*1e-2)[None,:,:]
     #Load previous state and posterior covariance
     x = np.fromfile(input.x).reshape((np.prod(ifgram_shape),) + (nstates,))
     P = np.fromfile(input.P).reshape((np.prod(ifgram_shape),) + (nstates,nstates))
     #Read mli parameters of first and last in stack
     stack_dt = stack[0].master_par.start_time - stack[-1].slave_par.start_time
-    #Master times
-    master_times = [s.master_par.start_time for s in stack]
     #Matrix for the stack transition
     F = intfun.F_model(stack_dt)
     #H matrix
@@ -57,21 +49,28 @@ def kalman(input, output, threads, config, params, wildcards):
     H_m = np.array([1,0]) * phase_factor
     H = stack.H_stack(intfun.F_model, H_m)
     #Covariance matrix
-    R = np.eye(H.shape[0]) * 2 * phase_factor + np.ones((H.shape[0],H.shape[0])) * 0.2
+    R = np.eye(H.shape[0]) * 2 * phase_factor
     Q = np.eye(2) * 1e-6
-    filter = ka.KalmanFilter(2, H.shape[0], H=H[None,:,:], F=F[None,:,:], R=R_samp, x0=x, Q=Q[None,:,:], P=P)
-    #Prediction step
-    filter.predict()
-    #Update
-    filter.update(z)
+    #Perform 5 EM-steps
+    for idx_em in range(2):
+        filter = ka.KalmanFilter(2, H.shape[0], H=H[None,:,:], F=F[None,:,:], R=R, x0=x, Q=Q[None,:,:], P=P)
+        #Prediction step
+        filter.predict()
+        #Update
+        filter.update(z)
+        #Compute ML R using H*x - z
+        z_hat = filter.output()
+        #Compute residual
+        diff = z_hat - z
+        R = np.einsum('...i,...j->...ij',diff,diff.conj())
+
+    #Save estimates
     filter.x.tofile(output.x)
     filter.P.tofile(output.P)
-    #Display
+    #Plotting
     seconds_to_day = 24 * 60 * 60
     f, (ax_d, ax_v) = plt.subplots(1,2)
     asp = 1/3
-    # ax_z.imshow(z.reshape(ifgram_shape +  (len(stack.stack),))[:,:,0], aspect=asp)
-    # ax_z.set_title('Unwrapped interferogram')
     displacement = x.reshape(ifgram_shape + (nstates,))[:,:,0]
     displacement_variance = P.reshape(ifgram_shape + (nstates,nstates))[:,:,0,0]
     print(displacement_variance)
