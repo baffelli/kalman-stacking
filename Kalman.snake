@@ -106,7 +106,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/z_20150803_060519_AAAl_10.npy')
+        expand('kalman/kalman_20150803_060519_AAAl_10')
 
 
 
@@ -532,6 +532,26 @@ rule prepare_kalman:
         'scripts/prepare_kalman.py'
 
 
+
+def all_previous(wildcards, pattern, counter_variable):
+    wild_copy = dict(wildcards)
+    counter = wildcards.get(counter_variable)#extract the counter
+    files = []
+    for i in range(1, int(counter)):
+        wild_copy[counter_variable] = i
+        files.append(pattern.format(**wild_copy))
+    return files
+
+rule run_kalman:
+    output:
+        kalman_pickle = 'kalman/kalman_{start_dt}_{chan}_{i}'
+    input:
+        z = lambda wildcards: all_previous(wildcards, 'kalman/z_{start_dt}_{chan}_{i}.npy', 'i'),
+        F = lambda wildcards: all_previous(wildcards, 'kalman/F_{start_dt}_{chan}_{i}.npy', 'i'),
+        H = lambda wildcards: all_previous(wildcards, 'kalman/H_{start_dt}_{chan}_{i}.npy', 'i'),
+        ref_mli_par = 'mli/{start_dt}_{chan}.mli.par',
+    script:
+        'scripts/kalman.py'
 
 #
 #def format_kalman_step(pattern, wildcards):

@@ -42,7 +42,7 @@ def prepare_kalman(input, output, threads, config, params, wildcards):
     H_m = np.array([1,0]) * phase_factor
     H = stack.H_stack(intfun.F_model, H_m)
     #Save the matrices
-    np.save( output.H, H)
+    np.save(output.H, H)
     np.save(output.z, z)
     np.save(output.F, F)
 
