@@ -106,7 +106,7 @@ stack = StackHelper('list_of_slcs.csv')
 
 rule all:
     input:
-        expand('kalman/20150803_060519_AAAl.x_5')
+        expand('kalman/Z_20150803_060519_AAAl.npy')
 
 
 
@@ -511,14 +511,18 @@ rule diff_to_map:
 
 
 
-
-rule kalman_inputs:
+#Prepare the filter by pickling the filter input, output matrix etc
+rule prepare_kalman:
     output:
-        z = 'kalman/{start_dt}_{chan}.z_{i}',
-        H = 'kalman/{start_dt}_{chan}.H_{i}',
+        z = 'kalman/Z_{start_dt}_{chan}_{i}.npy',
+        F = 'kalman/Z_{start_dt}_{chan}_{i}.npy',
+        H = 'kalman/Z_{start_dt}_{chan}_{i}.npy',
     input:
         unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.unw')
-
+        diff_pars = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
+        mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
+    script:
+        'scripts/prepare_kalman.py'
 
 
 
