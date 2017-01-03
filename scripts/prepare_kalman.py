@@ -19,17 +19,14 @@ import pyrat.diff.core as ifgrams
 
 import pyrat.visualization.visfun as vf
 
-def kalman(input, output, threads, config, params, wildcards):
-    #Load reference position
-    with open(input.reference_coord,'r') as infile:
-        ref_pos = gf.get_reference_coord(json.load(infile))
+def prepare_kalman(input, output, threads, config, params, wildcards):
     #load inputs
     dt = []
     master_times = []
     slave_times = []
     z = []
     #Create itab
-    itab = intfun.Itab.fromfile(input.itab)
+    # itab = intfun.Itab
     #Read in the input stack
     stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab)
     #get number of states
@@ -45,12 +42,12 @@ def kalman(input, output, threads, config, params, wildcards):
     H_m = np.array([1,0]) * phase_factor
     H = stack.H_stack(intfun.F_model, H_m)
     #Save the matrices
-    H.save(output.H)
-    z.save(output.z)
-    F.save(output.F)
+    np.save( output.H, H)
+    np.save(output.z, z)
+    np.save(output.F, F)
 
 
-kalman(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,
+prepare_kalman(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,
       snakemake.wildcards)
 
 
