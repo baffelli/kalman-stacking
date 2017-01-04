@@ -27,10 +27,10 @@ def kalman(input, output, threads, config, params, wildcards):
     ifgram_shape = z[-1].shape[0]
     x0 = np.tile([0.1,0.1], (ifgram_shape,1))
     #Initialize Kalman filter
-    R = np.tile(np.eye(z[-1].shape[-1]) * 1e-6, (z[-1].shape[0],1,1))
-    Q = np.tile(np.eye(2) * 1e-3, (z[-1].shape[0],1,1))
-    kf = ka.KalmanFilter(F=F,H=H, R=R, x0=x0, Q=Q)
-    kf.filter(z)
+    kf = ka.KalmanFilter(F=F,H=H)
+    #Tune filter using EM algorithm
+    kf.EM(z)
+    # kf.filter(z)
 
 
 
