@@ -12,41 +12,63 @@
 
 \begin{document}
 \maketitle
-\section{Linear Displacement Model}\label{sec:displacement_model}
-Consider the following discretized model to describe the displacement of a point in an unstable slope or another moving feature:
+\section{Latent Linear Dynamical System Model}\label{sec:displacement_model}
+Consider a generic point moving on an unstable slope according to the general linear dynamic system (LDS):
 \begin{equation}
-	\mathbf{x}_i = \mathbf{F}_i \mathbf{x}_{i-1}
+	\mathbf{x}_t = \mathbf{F}_t \mathbf{x}_{t-1}
 \end{equation}
-The state variable $\mathbf{x}_i$ contains the model parameters, i.e displacement, velocity, acceleration and the matrix $\mathbf{F}_i$ describes the evolution of the parameters. To begin with, we consider a simple uniform motion; where the state at any discrete time $k$ is:
+where the state variable $\mathbf{x}_t$ contains the model parameters, i.e displacement, velocity, acceleration at every time step $t$. $\mathbf{F}_t$ describes the evolution of the parameters; we allow it to vary with time. For an uniform motion, the LDS description is:
 \begin{equation}
-\mathbf{x}_k = 
+\mathbf{x}_t = 
 	\begin{bmatrix}
-		d_{k}\\
-		v_{k}
+		d_{t}\\
+		v_{t}
 	\end{bmatrix}
 \end{equation}
-where $d_{k}$ is the distance from the point to a (non-moving) reference point and $v_k$ is the velocity of the motion.
-In this situation, the state evolves from $i-1$ to $i$ as:
+where $d_t$ is the distance from the point to a (non-moving) reference point and $v_t$ is the velocity of the motion.
+In this situation, the state evolves from $t-1$ to $t$ as:
 \begin{equation}
-	\mathbf{x}_i = 
+	\mathbf{x}_t = 
 		\begin{bmatrix}
-			d_{i}\\
-			v_{i}
+			d_{t}\\
+			v_{t}
 		\end{bmatrix} =
 		\begin{bmatrix}
 		1 & \Delta t\\
 		0 & 1
 		\end{bmatrix}
 		\begin{bmatrix}
-			d_{i-1}\\
-			v_{i-1}
+			d_{t-1}\\
+			v_{t-1}
 		\end{bmatrix}.
 \end{equation}
-Where $\Delta t$ is the duration of the time step between $i-1$ and $i$.\\
-At any time $i$, the theoretical propagation phase of a SLC pixel relative to the reference location is is:
+Where $\Delta t$ is the duration of the time step between $t-1$ and $t$.\\
+Suppose we now want to apply this type of model to interferometric SAR acquisitions of a scene with moving features. We start simplistically by considering the SLC phase $\phi_t$ at each pixel, which is proportional to $r_t$, the distance between the pixel and the sensor modulo $2 \pi$:
 \begin{equation}
-	\phi_i = \begin{bmatrix} \frac{4\pi}{\lambda} & 0 \end{bmatrix} \mathbf{x}_i = \mathbf{H} \mathbf{x}_i
+	\phi_t = \frac{4\pi}{\lambda} r_t + 2 \pi n.
 \end{equation}
+Using the distance between radar and reference point, $r_t^{ref}$, $r_t$ can be rewritten as a function of the relative displacement as described by the LDS, $d_t$:
+\begin{equation}
+	r_t = r_t^{ref} + d_t.
+\end{equation}
+Normally, instead of directly considering the SLC phase, interferograms are formed between acquisitions at times $t_i$ and $t_j$. By doing so, all systematic effects are removed; theoretically the interferograms phase $\Delta\phi_{t_i,t_j}$ is proportional to the change in distance from the point to the radar between acquisition $t_i$ and $t_j$ modulo $2\pi$:
+\begin{equation}
+	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(r_{t_j} - r_{t_i}\right) + 2 \pi n
+\end{equation}
+Assuming the reference point to be stable, i.e $r_{t_i}^{ref} = r_{t_i}^{ref}$, the interferogram phase simplifies to:
+\begin{equation}
+	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(d_{t_i} - d_{t_j}\right) + 2 \pi n.
+\end{equation}
+In general, the displacement $d_{t_k}$ at any time $t_k$ can be written as a function of the LDS state $\mathbf{x}_{t_k}$
+\begin{equation}
+	d_{t_k} = \begin{bmatrix}
+		1 & 0
+	\end{bmatrix} \mathbf{x}_{t_k} = \mathbf{H}^d  \mathbf{x}_{t_k}
+\end{equation}
+We now naively assume that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm. By doing so, the interferogram phase can be rewritten as a function of the LDS states at times $t_{i}$ and $t_{j}$:
+\begin{equation}
+	\Delta\phi_{t_i,t_j} = \frac{4\pi}{\lambda} \mathbf{H}^d \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right)
+\end{equation}		
 \section{Single Reference Stack}
 If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\Delta\phi_{i}$ can be expressed as a function of the model output $\phi_i$:
 \begin{equation}
