@@ -101,7 +101,7 @@ wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
 include: pyrat.rules['raw_to_slc']
 include: pyrat.rules['geocoding']
 
-itab_par = {'window':0, 'step':1, 'stride':1}
+itab_par = {'window':None, 'step':1, 'stride':1}
 
 #Initialize stack
 stack = utils.StackHelper('list_of_slcs.csv')
@@ -110,7 +110,7 @@ print(stack)
 
 rule all:
     input:
-         'stack/20150710_070000_stack_20150710_080000_AAAl.diff_gc.tif',
+         'stack/20150710_120000_stack_20150710_140000_AAAl.diff_gc.tif',
 
 
 
@@ -459,7 +459,7 @@ rule stacking:
         avg_ifgram  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff',
         avg_ifgram_par  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff_par',
     input:
-        ifgrams = lambda wildcards: stack.itab_entries_between_dates('diff/{start_dt}_{stop_dt}_{chan}.diff', wildcards, itab_par),
+        ifgrams = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', **itab_par),
         lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
         dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
     wildcard_constraints:
