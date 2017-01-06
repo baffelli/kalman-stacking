@@ -24,6 +24,8 @@ def kalman(input, output, threads, config, params, wildcards):
     z = np.array([np.load(cz) for cz in input.z])
     F = np.array([np.load(cf) for cf in input.F])
     H = np.array([np.load(ch) for ch in input.H])
+    print(z.shape)
+    print(H.shape)
     np.save('/home/baffelli/Downloads/Z.npy', z)
     np.save('/home/baffelli/Downloads/F.npy', F)
     np.save('/home/baffelli/Downloads/H.npy', H)

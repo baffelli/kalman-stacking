@@ -22,7 +22,7 @@ import pyrat.visualization.visfun as vf
 
 def create_itab(input, output, threads, config, params, wildcards):
     #Create itab
-    itab = pyrat.diff.utils.Itab(config['kalman']['nstack'], window=config['ptarg']['window'], step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref'])
+    itab = pyrat.diff.utils.Itab(config['kalman']['nstack'], window=config['kalman']['window'], step=config['kalman']['step'], stride=config['kalman']['stride'], n_ref=config['kalman']['ref'])
     itab.tofile(output.itab)
 
 

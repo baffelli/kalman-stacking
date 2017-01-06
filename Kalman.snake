@@ -101,7 +101,7 @@ wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
 include: pyrat.rules['raw_to_slc']
 include: pyrat.rules['geocoding']
 
-itab_par = {'window':None, 'step':1, 'stride':1}
+itab_par = config['kalman']
 
 #Initialize stack
 stack = utils.StackHelper('list_of_slcs.csv')
@@ -110,7 +110,8 @@ print(stack)
 
 rule all:
     input:
-         'stack/20150710_120000_stack_20150710_140000_AAAl.diff_gc.tif',
+           expand('kalman/kalman_20150803_060519_AAAl_3')
+#         'stack/20150710_120000_stack_20150710_140000_AAAl.diff_gc.tif',
 
 
 
@@ -546,9 +547,9 @@ rule prepare_kalman:
         F = 'kalman/F_{start_dt}_{chan}_{i}.npy',
         H = 'kalman/H_{start_dt}_{chan}_{i}.npy',
     input:
-        unw = lambda wildcards: stack.next_stack_combinations(wildcards, 'diff/{master}_{chan}_{slave}_{chan}.unw'),
-        diff_pars = lambda wildcards: stack.next_stack_combinations(wildcards, 'int/{master}_{chan}_{slave}_{chan}.int_par'),
-        mli_pars = lambda wildcards: stack.next_stack_single(wildcards, 'mli/{datetime}_{chan}.mli.par'),
+        unw = lambda wildcards: stack.next_stack_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', index='i',  **itab_par),
+        diff_pars = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par', index='i',  **itab_par),
+        mli_pars = lambda wildcards: stack.next_stack_dates(wildcards, 'mli/{stop_dt}_{chan}.mli.par', index='i',  **itab_par),
         itab = 'kalman/{start_dt}_{chan}.itab'
     script:
         'scripts/prepare_kalman.py'

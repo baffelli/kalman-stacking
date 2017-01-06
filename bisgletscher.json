@@ -54,6 +54,10 @@
 	},
 	"kalman":
 	{
+		"ref": 1,
+		"step": 1,
+		"window": 5,
+		"stride": 1,
 		"nstack": 5,
         "nstates": 2
 	},

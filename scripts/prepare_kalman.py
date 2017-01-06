@@ -28,6 +28,8 @@ def prepare_kalman(input, output, threads, config, params, wildcards):
     #Create itab
     # itab = intfun.Itab
     #Read in the input stack
+    print(input.mli_pars)
+    print(input.unw)
     stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab)
     #get number of states
     nstates = config['kalman']['nstates']
