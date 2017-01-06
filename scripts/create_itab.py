@@ -1,3 +1,4 @@
+import pyrat.diff.utils
 from pyrat.diff import kalman as ka
 import pyrat.diff.intfun as intfun
 import numpy as np
@@ -21,7 +22,7 @@ import pyrat.visualization.visfun as vf
 
 def create_itab(input, output, threads, config, params, wildcards):
     #Create itab
-    itab = intfun.Itab(config['kalman']['nstack'], window=config['ptarg']['window'], step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref'])
+    itab = pyrat.diff.utils.Itab(config['kalman']['nstack'], window=config['ptarg']['window'], step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref'])
     itab.tofile(output.itab)
 
 

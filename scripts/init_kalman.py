@@ -1,3 +1,4 @@
+import pyrat.diff.utils
 from pyrat.diff import kalman as ka
 import pyrat.diff.intfun as intfun
 import pyrat.fileutils.gpri_files as gpf
@@ -7,7 +8,7 @@ def init_kalman(input, output, threads, config, params, wildcards):
     #Create itab and save it
     nstack = config['kalman']['nstack']
     nstates = config['kalman']['nstates']
-    itab = intfun.Itab(nstack, window=config['ptarg']['window'], step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref'])
+    itab = pyrat.diff.utils.Itab(nstack, window=config['ptarg']['window'], step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref'])
     itab.tofile(output.itab)
     #Load mli par
     mli_par = gpf.par_to_dict(input.mli_par)

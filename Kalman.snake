@@ -12,6 +12,7 @@ import re
 
 import numpy as np
 
+import pyrat.diff.utils as utils
 
 provider = RemoteProvider(port=22,username="baffelli", private_key="/home/baffelli/.ssh/id_rsa")
 
@@ -24,74 +25,74 @@ dtfmt = "%Y%m%d_%H%M%S"
 wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
 
 
-def select_date_range(string_dates, date_start, date_end):
-    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
-    dt_start = dt.datetime.strptime(date_start, dtfmt)
-    dt_end = dt.datetime.strptime(date_end, dtfmt)
-    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start <= date <= dt_end]
-    return valid_dates
-
-def select_nth_previous(string_dates, date_end, n):
-    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
-    dt_end = dt.datetime.strptime(date_end, dtfmt)
-    #find the closest element to the end date
-    closest_index = min(dates, key=lambda x: abs(x- dt_end)) - 1
-    start = closest_index - n
-    valid_dates = dates[start]
-    return valid_dates
-
-def select_n_dates(string_dates, date_start, n_dates):
-    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
-    dt_start = dt.datetime.strptime(date_start, dtfmt)
-    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start <= date][:int(n_dates):]
-    return valid_dates
-
-
-class StackHelper:
-    def __init__(self, list_of_slcs):
-        with open(list_of_slcs, 'r') as f:#the object contains a list of valid slcs
-            reader = csv.reader(f)
-            self.all_dates = list(reader)[0]
-        self.itab = intfun.Itab(config['kalman']['nstack'], window=config['kalman']['nstack'],
-         step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref']).tab
-
-    def current_valid_date(self, wildcards, pattern):
-       #return the nearest valid date given the "start_dt" wildcard
-      start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, 1)
-      wc = dict(wildcards)
-      wc['start_dt'] = start_dt_list[0]
-      return pattern.format(**wc)
-
-
-    def next_stack_dates(self, wildcards):
-        #select next starting slc
-        start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, int(wildcards.i))
-        start_dt = start_dt_list[-1]
-        #maxmium window length gives the last slc
-        last_slc_index = np.max(np.array(self.itab)[:, 0:2]) + 1
-        #find the last slc
-        stop_dt = select_n_dates(self.all_dates, start_dt, last_slc_index)[-1]
-        #now select range
-        valid_dates = select_date_range(self.all_dates, start_dt, stop_dt)
-#        print("Kalman Filter start date: {start_dt}".format(start_dt= wildcards.start_dt))
-#        print("Filter iteration index: {i}".format(i= wildcards.i))
-#        print("Last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
-#        print("Slc in stack: {}".format(valid_dates))
-        return valid_dates
-
-    def next_stack_single(self, wildcards, pattern):
-        valid_slcs = self.next_stack_dates(wildcards)
-        return [pattern.format(datetime=s, chan=wildcards.chan) for s in valid_slcs]
-
-
-    def next_stack_combinations(self, wildcards, pattern):
-        valid_slcs = self.next_stack_dates(wildcards)
-        #Compute ifgrams in itab
-        ifgrams = []
-        for master, slave, *rest in self.itab:
-            ifgram = pattern.format(master=valid_slcs[master - 1], slave=valid_slcs[slave - 1] , chan=wildcards.chan)
-            ifgrams.append(ifgram)
-        return ifgrams
+#def select_date_range(string_dates, date_start, date_end):
+#    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
+#    dt_start = dt.datetime.strptime(date_start, dtfmt)
+#    dt_end = dt.datetime.strptime(date_end, dtfmt)
+#    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start <= date <= dt_end]
+#    return valid_dates
+#
+#def select_nth_previous(string_dates, date_end, n):
+#    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
+#    dt_end = dt.datetime.strptime(date_end, dtfmt)
+#    #find the closest element to the end date
+#    closest_index = min(dates, key=lambda x: abs(x- dt_end)) - 1
+#    start = closest_index - n
+#    valid_dates = dates[start]
+#    return valid_dates
+#
+#def select_n_dates(string_dates, date_start, n_dates):
+#    dates = [ dt.datetime.strptime(x, dtfmt) for x in string_dates]
+#    dt_start = dt.datetime.strptime(date_start, dtfmt)
+#    valid_dates = [date.strftime(dtfmt) for date in dates if dt_start <= date][:int(n_dates):]
+#    return valid_dates
+#
+#
+#class StackHelper:
+#    def __init__(self, list_of_slcs):
+#        with open(list_of_slcs, 'r') as f:#the object contains a list of valid slcs
+#            reader = csv.reader(f)
+#            self.all_dates = list(reader)[0]
+#        self.itab = intfun.Itab(config['kalman']['nstack'], window=config['kalman']['nstack'],
+#         step=config['ptarg']['step'], stride=config['ptarg']['stride'], n_ref=config['ptarg']['ref']).tab
+#
+#    def current_valid_date(self, wildcards, pattern):
+#       #return the nearest valid date given the "start_dt" wildcard
+#      start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, 1)
+#      wc = dict(wildcards)
+#      wc['start_dt'] = start_dt_list[0]
+#      return pattern.format(**wc)
+#
+#
+#    def next_stack_dates(self, wildcards):
+#        #select next starting slc
+#        start_dt_list = select_n_dates(self.all_dates, wildcards.start_dt, int(wildcards.i))
+#        start_dt = start_dt_list[-1]
+#        #maxmium window length gives the last slc
+#        last_slc_index = np.max(np.array(self.itab)[:, 0:2]) + 1
+#        #find the last slc
+#        stop_dt = select_n_dates(self.all_dates, start_dt, last_slc_index)[-1]
+#        #now select range
+#        valid_dates = select_date_range(self.all_dates, start_dt, stop_dt)
+##        print("Kalman Filter start date: {start_dt}".format(start_dt= wildcards.start_dt))
+##        print("Filter iteration index: {i}".format(i= wildcards.i))
+##        print("Last slc of stack: {stop_dt}".format(stop_dt=stop_dt))
+##        print("Slc in stack: {}".format(valid_dates))
+#        return valid_dates
+#
+#    def next_stack_single(self, wildcards, pattern):
+#        valid_slcs = self.next_stack_dates(wildcards)
+#        return [pattern.format(datetime=s, chan=wildcards.chan) for s in valid_slcs]
+#
+#
+#    def next_stack_combinations(self, wildcards, pattern):
+#        valid_slcs = self.next_stack_dates(wildcards)
+#        #Compute ifgrams in itab
+#        ifgrams = []
+#        for master, slave, *rest in self.itab:
+#            ifgram = pattern.format(master=valid_slcs[master - 1], slave=valid_slcs[slave - 1] , chan=wildcards.chan)
+#            ifgrams.append(ifgram)
+#        return ifgrams
 
 
 
@@ -100,13 +101,16 @@ class StackHelper:
 include: pyrat.rules['raw_to_slc']
 include: pyrat.rules['geocoding']
 
+itab_par = {'window':0, 'step':1, 'stride':1}
 
 #Initialize stack
-stack = StackHelper('list_of_slcs.csv')
+stack = utils.StackHelper('list_of_slcs.csv')
+print(stack)
+
 
 rule all:
     input:
-        expand('kalman/kalman_20150803_060519_AAAl_10')
+         'stack/20150710_070000_stack_20150710_080000_AAAl.diff_gc.tif',
 
 
 
@@ -449,6 +453,24 @@ rule diff_par:
 
 
 
+
+rule stacking:
+    output:
+        avg_ifgram  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff',
+        avg_ifgram_par  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff_par',
+    input:
+        ifgrams = lambda wildcards: stack.itab_entries_between_dates('diff/{start_dt}_{stop_dt}_{chan}.diff', wildcards, itab_par),
+        lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
+        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
+    wildcard_constraints:
+        start_dt = dt_regex,
+        stop_dt = dt_regex,
+    params:
+        ridx = 1173,
+        azidx = 112,
+        ws = 8
+    script:
+        'scripts/stacking.py'
 
 
 rule cleanup_diff:
