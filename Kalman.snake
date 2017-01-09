@@ -110,7 +110,7 @@ print(stack)
 
 rule all:
     input:
-           expand('kalman/kalman_20150803_060519_AAAl_3')
+           expand('kalman/kalman_20150803_060519_AAAl_10')
 #         'stack/20150710_120000_stack_20150710_140000_AAAl.diff_gc.tif',
 
 
