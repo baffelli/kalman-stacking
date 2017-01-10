@@ -21,7 +21,7 @@ Consider the general time-discrete Latent Linear Dynamical System (LDS)\cite{Bar
 		\mathbf{y}_{t} &= \mathbf{H}_{t}  \mathbf{x}_{t} + \mathbf{v}_t \quad \mathbf{v}_t   \sim \normdist{0}{\mathbf{R}_t}
 	\end{aligned}
 \end{equation}
-that describes the evolution of the hidden state $\mathbf{x_t}$ of a stochastic linear dynamical system, of which we observe $\mathbf{y}_t$, a transformed version of the hidden state corrupted by zero mean additive Gaussian noise with covariance matrix $\mathbf{R}_t$.\\
+that describes the evolution of the hidden state $\mathbf{x_t}$ of a stochastic linear dynamical system, of which we observe $\mathbf{y}_t$, a transformed version of the hidden state corrupted by zero mean additive Gaussian noise with covariance matrix $\mathbf{R}_t$. \\
 For example, for an uniform linear motion the state vector $\mathbf{x}_t$ would consist of position and velocity at each time $t$:
 \begin{equation}\label{eq:simplified_state}
 \mathbf{x}_t = 
@@ -69,16 +69,15 @@ Thus, the SLC phase can be expressed as:
 		 &= \left(\mathbf{H}_{t}\mathbf{x}_t + \mathbf{u}_t\right) + 2 \pi n
 	\end{aligned}		
 \end{equation}
-That is the output of the LDS plus an additional offset vector
+That is the output $\mathbf{y}_t $ of the LDS plus an additional offset vector:
 \begin{equation}
 	\mathbf{u}_t = 
 	\begin{bmatrix}
-		r_{t}\\
+		r_{t}^{ref}\\
 		0
 	\end{bmatrix},
 \end{equation}	 modulo $2\pi$.
-Where we used $\mathbf{y}_{t}$ to be consistent with the usual LDS notation for the systems output.\\
-Normally, instead of directly considering the SLC phase, interferograms are formed between acquisitions at times $t_i$ and $t_j$. By doing so, all systematic effects are removed; theoretically the interferograms phase $\Delta\phi_{t_i,t_j}$ is proportional to the change in distance from the point to the radar between acquisition $t_i$ and $t_j$ modulo $2\pi$:
+Usually, instead of considering the SLC phase, interferograms are formed between acquisitions at different times $t_i$ and $t_j$. By doing so, all systematic effects are removed; theoretically the interferograms phase $\Delta\phi_{t_i,t_j}$ is proportional to the change in distance from the point to the radar between acquisition $t_i$ and $t_j$ modulo $2\pi$:
 \begin{equation}
 	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(r_{t_j} - r_{t_i}\right) + 2 \pi n
 \end{equation}
@@ -86,17 +85,16 @@ Assuming the reference point to be stable, i.e $r_{t_i}^{ref} = r_{t_i}^{ref}$, 
 \begin{equation}
 	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(d_{t_i} - d_{t_j}\right) + 2 \pi n.
 \end{equation}
-In general, the displacement $d_{t_k}$ at any time $t_k$ can be written as a function of the LDS state $\mathbf{x}_{t_k}$
+This can be rewritten in terms of the LDS output modulo $2\pi$ 
 \begin{equation}
-	d_{t_k} = \begin{bmatrix}
-		1 & 0
-	\end{bmatrix} \mathbf{x}_{t_k} = \mathbf{H}  \mathbf{x}_{t_k}
+	\Delta\phi_{t_i,t_j} = \left(\mathbf{y}_{y_i} - \mathbf{y}_{t_j}\right) + 2 \pi n,
 \end{equation}
-We now naively assume that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm. By doing so, the interferogram phase can be rewritten as a function of the LDS states at times $t_{i}$ and $t_{j}$:
+and it can be again expanded as a function of the hidden states:
 \begin{equation}\label{ifgram_phase}
-	\Delta\phi_{t_i,t_j} = \frac{4\pi}{\lambda} \mathbf{H}^d \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right).
+	\Delta\phi_{t_i,t_j} = \mathbf{H} \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right) +2 n \pi.
 \end{equation}		
-Using \autoref{eq:state_recursion} we recursively express the state $\mathbf{x}_{t_j}$ as a function of the previous states, arriving at an expression that depends on $\mathbf{x}_{t_i}$ only:
+Naively assuming that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm, the $2\pi n$ terms can be dropped as well, simplifying the subsequent derivations.
+Using \autoref{eq:state_recursion} the state $\mathbf{x}_{t_j}$ can be expressed recursively as a function of the previous states, arriving at an expression that depends on $\mathbf{x}_{t_i}$ only:
 \begin{equation}
 	\mathbf{x}_{t_j} = \prod_{t=t_{i}}^{t_j}\mathbf{F}_t \mathbf{x}_{t_i}.
 \end{equation}
