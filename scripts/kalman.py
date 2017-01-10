@@ -31,6 +31,7 @@ def kalman(input, output, threads, config, params, wildcards):
     np.save('/home/baffelli/Downloads/H.npy', H)
     ifgram_shape = z[-1].shape[0]
     x0 = np.tile([0.1,0.1], (ifgram_shape,1))
+
     #Initialize Kalman filter
     kf = ka.KalmanFilter(F=F[:,None,:,:],H=H[:,None,:,:])
     #Tune filter using EM algorithm

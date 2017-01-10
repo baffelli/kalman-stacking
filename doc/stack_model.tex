@@ -14,7 +14,7 @@
 \maketitle
 \section{Latent Linear Dynamical System Model}\label{sec:displacement_model}
 Consider a generic point moving on an unstable slope according to the general linear dynamic system (LDS):
-\begin{equation}
+\begin{equation}\label{eq:state_recursion}
 	\mathbf{x}_t = \mathbf{F}_t \mathbf{x}_{t-1}
 \end{equation}
 where the state variable $\mathbf{x}_t$ contains the model parameters, i.e displacement, velocity, acceleration at every time step $t$. $\mathbf{F}_t$ describes the evolution of the parameters; we allow it to vary with time. For an uniform motion, the LDS description is:
@@ -43,6 +43,7 @@ In this situation, the state evolves from $t-1$ to $t$ as:
 		\end{bmatrix}.
 \end{equation}
 Where $\Delta t$ is the duration of the time step between $t-1$ and $t$.\\
+\subsection{Single Interferogram}
 Suppose we now want to apply this type of model to interferometric SAR acquisitions of a scene with moving features. We start simplistically by considering the SLC phase $\phi_t$ at each pixel, which is proportional to $r_t$, the distance between the pixel and the sensor modulo $2 \pi$:
 \begin{equation}
 	\phi_t = \frac{4\pi}{\lambda} r_t + 2 \pi n.
@@ -50,6 +51,15 @@ Suppose we now want to apply this type of model to interferometric SAR acquisiti
 Using the distance between radar and reference point, $r_t^{ref}$, $r_t$ can be rewritten as a function of the relative displacement as described by the LDS, $d_t$:
 \begin{equation}
 	r_t = r_t^{ref} + d_t.
+\end{equation}
+Thus, the SLC phase can be expressed as the output of the LDS in \autoref{eq:state_recursion}:
+\begin{equation}
+	\phi_t = \frac{4\pi}{\lambda} \left(
+		\begin{bmatrix}
+			1 & 0
+		\end{bmatrix} \mathbf{x}_{t}
+		+  r_t^{ref}
+		\right) + 2 \pi n.
 \end{equation}
 Normally, instead of directly considering the SLC phase, interferograms are formed between acquisitions at times $t_i$ and $t_j$. By doing so, all systematic effects are removed; theoretically the interferograms phase $\Delta\phi_{t_i,t_j}$ is proportional to the change in distance from the point to the radar between acquisition $t_i$ and $t_j$ modulo $2\pi$:
 \begin{equation}
@@ -63,12 +73,29 @@ In general, the displacement $d_{t_k}$ at any time $t_k$ can be written as a fun
 \begin{equation}
 	d_{t_k} = \begin{bmatrix}
 		1 & 0
-	\end{bmatrix} \mathbf{x}_{t_k} = \mathbf{H}^d  \mathbf{x}_{t_k}
+	\end{bmatrix} \mathbf{x}_{t_k} = \mathbf{H}  \mathbf{x}_{t_k}
 \end{equation}
 We now naively assume that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm. By doing so, the interferogram phase can be rewritten as a function of the LDS states at times $t_{i}$ and $t_{j}$:
-\begin{equation}
-	\Delta\phi_{t_i,t_j} = \frac{4\pi}{\lambda} \mathbf{H}^d \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right)
+\begin{equation}\label{ifgram_phase}
+	\Delta\phi_{t_i,t_j} = \frac{4\pi}{\lambda} \mathbf{H}^d \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right).
 \end{equation}		
+Using \autoref{eq:state_recursion} we recursively express the state $\mathbf{x}_{t_j}$ as a function of the previous states, arriving at an expression that depends on $\mathbf{x}_{t_i}$ only:
+\begin{equation}
+	\mathbf{x}_{t_j} = \prod_{t=t_{i}}^{t_j}\mathbf{F}_t \mathbf{x}_{t_i}.
+\end{equation}
+The interferometric phase can be then rewritten as:
+\begin{equation}
+	\Delta\phi_{t_i,t_j} = \mathbf{H} \left(\mathbf{I} - \prod_{t=t_{i}}^{t_j}\mathbf{F}_t \right)\mathbf{x}_{t_i}
+\end{equation}	
+where $\mathbf{H} = 
+	\begin{bmatrix}
+	 \frac{4\pi}{\lambda} & 0
+	\end{bmatrix}$.
+\subsection{Interferogram stack}
+Generally, it is desired to analyse a \emph{stack} $\Delta\mathbf{\Phi}_{i}$  of interferograms, that is a subset of length $N_{stack}$ interferograms computed from a sequence of $N_{slc}$ SLC phases starting from time $t_i$ up to time $t_{i+N_{SLC}}$ arranged in an SLC vector $\mathbf{\Phi}_i$. The interferogram phases  are obtained from the SLC vector using the  $N_{stack}\times N_{slc}$ incidence matrix $\mathbf{A}$, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack obtained from SLCs $k$ and $l$\cite{Agram2015}:
+\begin{equation}
+	 \Delta\mathbf{\Phi}_{i} = \mathbf{A} \mathbf{\Phi}_{i}.
+\end{equation}
 \section{Single Reference Stack}
 If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\Delta\phi_{i}$ can be expressed as a function of the model output $\phi_i$:
 \begin{equation}
