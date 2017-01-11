@@ -29,25 +29,24 @@ def prepare_kalman(input, output, threads, config, params, wildcards):
     z = []
     #Create itab
     #Read in the input stack
-    stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab)
-    #Load the unwrapping mask
-    mask = misc.imread(input.unw_mask, mode='L')
-    #get number of states
-    nstates = config['kalman']['nstates']
-    ifgram_shape = stack[0].shape
-    #Reshape to npixels * size
-    z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
-    stack_dt = stack[0].master_par.start_time - stack[-1].slave_par.start_time
-    #Matrix for the stack transition
-    F = intfun.F_model(stack_dt)
-    #H matrix
-    phase_factor = np.pi * 4 / gpf.lam(stack[0].master_par.radar_frequency)
-    H_m = np.array([1,0]) * phase_factor
-    H = stack.H_stack(intfun.F_model, H_m)
-    #Save the matrices
-    np.save(output.H, H)
-    np.save(output.z, z)
-    np.save(output.F, F)
+    stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab, mask=input.unw_mask)
+    stack.tofile(output.z)
+    # #get number of states
+    # nstates = config['kalman']['nstates']
+    # ifgram_shape = stack[0].shape
+    # #Reshape to npixels * size
+    # z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
+    # stack_dt = stack[0].master_par.start_time - stack[-1].slave_par.start_time
+    # #Matrix for the stack transition
+    # F = intfun.F_model(stack_dt)
+    # #H matrix
+    # phase_factor = np.pi * 4 / gpf.lam(stack[0].master_par.radar_frequency)
+    # H_m = np.array([1,0]) * phase_factor
+    # H = stack.H_stack(intfun.F_model, H_m)
+    # #Save the matrices
+    # np.save(output.H, H)
+    # np.save(output.z, z)
+    # np.save(output.F, F)
 
 
 prepare_kalman(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,

@@ -543,9 +543,7 @@ rule create_itab:
 #Prepare the filter by pickling the filter input, output matrix etc
 rule prepare_kalman:
     output:
-        z = 'kalman/z_{start_dt}_{chan}_{i}.npy',
-        F = 'kalman/F_{start_dt}_{chan}_{i}.npy',
-        H = 'kalman/H_{start_dt}_{chan}_{i}.npy',
+        z = 'kalman/Kalman_inputs_{start_dt}_{chan}_{i}',
     input:
         unw = lambda wildcards: stack.next_stack_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', index='i',  **itab_par),
         cc = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc', index='i',  **itab_par),
@@ -571,9 +569,7 @@ rule run_kalman:
     output:
         kalman_pickle = 'kalman/kalman_{start_dt}_{chan}_{i}'
     input:
-        z = lambda wildcards: all_previous(wildcards, 'kalman/z_{start_dt}_{chan}_{i}.npy', 'i'),
-        F = lambda wildcards: all_previous(wildcards, 'kalman/F_{start_dt}_{chan}_{i}.npy', 'i'),
-        H = lambda wildcards: all_previous(wildcards, 'kalman/H_{start_dt}_{chan}_{i}.npy', 'i'),
+        z = lambda wildcards: all_previous(wildcards, 'kalman/kalman_inputs_{start_dt}_{chan}_{i}', 'i'),
         ref_mli_par = 'mli/{start_dt}_{chan}.mli.par',
     script:
         'scripts/kalman.py'

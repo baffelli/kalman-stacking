@@ -48,7 +48,7 @@ where $d_t$ is the distance from the point to a (non-moving) reference point and
 \end{equation}
 Where $\Delta t$ is the duration of the time step between $t-1$ and $t$.\\
 \subsubsection{Modeling a Single Interferogram}
-The Latent LDS will be used as a simplified model to describe terrain deformation as observed by differential radar interferometry. The latent state $\mathbf{x}_t$ is assumed to contain the line-of-sight velocity and displacement w.r.t  the reference point for any feature of interest on the terrain, represented in the radar geometry.\\ Assuming an uniform linear model, the state transition is described by the $\mathbf{F}$ matrix of \autoref{eq:simplified_F}. For the moment, no assumptions are made regarding the covariance matrix $\mathbf{Q}_t$.\\
+The Latent LDS will be used as a simplified model to describe terrain deformation as observed by differential radar interferometry. The latent state $\mathbf{x}_t$ is assumed to contain the line-of-sight velocity and displacement w.r.t  the reference point for any feature of interest on the terrain, represented in the radar geometry.\\ Assuming an uniform linear model, the state transition is described by the $\mathbf{F}$ matrix of~\autoref{eq:simplified_F}. For the moment, no assumptions are made regarding the covariance matrix $\mathbf{Q}_t$.\\
 Under this very simplistic model, the SLC phase $\phi_t$ at each pixel at time $t$ is proportional to $r_t$, the distance between the pixel and the sensor modulo $2 \pi$:
 \begin{equation}
 	\phi_t = \frac{4\pi}{\lambda} r_t + 2 \pi n.
@@ -70,36 +70,28 @@ Thus, the SLC phase can be expressed as:
 	\end{aligned}		
 \end{equation}
 That can be identified as an output $\mathbf{y}_t$ of the LDS with :
-\begin{equation}
+\begin{equation}\label{eq:slc_phase_output}
 	\begin{aligned}
 		\mathbf{H}_{t} &=		
 						\begin{bmatrix}
-							1 & 0
-						\end{bmatrix}
+							\frac{4\pi}{\lambda} & 0
+						\end{bmatrix}\\
 		\mathbf{u}_t &= r_{t}^{ref}\\
-		\mathbf{D}_t &=1\\
-	\begin{aligned}
+		\mathbf{D}_t &=\frac{4\pi}{\lambda}\\
+	\end{aligned}
 \end{equation}	
 modulo $2\pi$.\\
 Usually, instead of considering the SLC phase, interferograms are formed between acquisitions at different times $t_i$ and $t_j$. By doing so, all systematic effects are removed; theoretically the interferograms phase $\Delta\phi_{t_i,t_j}$ is proportional to the change in distance from the point to the radar between acquisition $t_i$ and $t_j$ modulo $2\pi$:
 \begin{equation}
-	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(r_{t_j} - r_{t_i}\right) + 2 \pi n
+	\Delta\phi_{t_i,t_j} =  \mathbf{y}_{t_{i}} - \mathbf{y}_{t_{j}}
 \end{equation}
-Assuming the reference point to be stable, i.e $r_{t_i}^{ref} = r_{t_i}^{ref}$, the interferogram phase simplifies to:
-\begin{equation}
-	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(d_{t_i} - d_{t_j}\right) + 2 \pi n.
-\end{equation}
-This can be rewritten in terms of the LDS output modulo $2\pi$ 
-\begin{equation}
-	\Delta\phi_{t_i,t_j} = \left(\mathbf{y}_{y_i} - \mathbf{y}_{t_j}\right) + 2 \pi n,
-\end{equation}
-and it can be again expanded as a function of the hidden states:
+Assuming the reference point to be stable, i.e $\mathbf{u}_{t_i} = \mathbf{u}_{t_j}$, the interferogram phase simplifies to a function of the hidden states only:
 \begin{equation}\label{ifgram_phase}
 	\Delta\phi_{t_i,t_j} = \mathbf{H} \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right) +2 n \pi.
 \end{equation}		
 Where the index $t$ in $\mathbf{H}$ has been dropped, because the output matrix does not change over time.
 Naively assuming that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm, the $2\pi n$ terms can be removed as well, simplifying the subsequent derivations.
-Using \autoref{eq:state_recursion} the state $\mathbf{x}_{t_j}$ can be expressed recursively as a function of the previous states, arriving at an expression that depends on $\mathbf{x}_{t_i}$ only:
+Using~\autoref{eq:state_recursion} the state $\mathbf{x}_{t_j}$ can be expressed recursively as a function of the previous states, arriving at an expression that depends on $\mathbf{x}_{t_i}$ only:
 \begin{equation}\label{eq:state_recursion_explicit}
 	\mathbf{x}_{t_j} = \prod_{t=t_{i}}^{t_j}\mathbf{F}_t \mathbf{x}_{t_i}.
 \end{equation}
@@ -112,33 +104,40 @@ where $\mathbf{H} =
 	 \frac{4\pi}{\lambda} & 0
 	\end{bmatrix}$.
 \subsection{Modeling an Interferogram Stack}
-Generally, it is desired to analyse a \emph{stack} $\Delta\mathbf{\Phi}_{i}$  of interferograms, that is a subset of length $N_{stack}$ interferograms computed from a sequence of $N_{slc}$ SLC phases starting from time $t_{i-N_{slc}}$ up to time $t_{i}$ arranged in an SLC vector $\mathbf{\Phi}_i$. The interferogram phases  are obtained from the SLC vector using the  $N_{stack}\times N_{slc}$ incidence matrix $\mathbf{A}$, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack obtained from SLCs $k$ and $l$\cite{Agram2015}:
+Generally, it is desired to analyze a \emph{stack} $\Delta\mathbf{\Phi}_{i}$  of interferograms, that is a subset of length $N_{stack}$ interferograms computed from a sequence of $N_{slc}$ SLC phases starting from time $t_{i-N_{slc}}$ up to time $t_{i}$ arranged in an SLC vector $\mathbf{\Phi}_{t_i}$:
+\begin{equation}
+	\mathbf{\Phi}_{t_i} = 		\begin{bmatrix}
+									\mathbf{y}_{t_{i}}\\
+									\vdots\\
+									\mathbf{y}_{t_{i-N_{slc}}}\\
+								\end{bmatrix}.
+\end{equation}
+Or using~\autoref{eq:slc_phase_output} :
+\begin{equation}
+	\mathbf{\Phi}_{t_i} = 		\begin{bmatrix}
+									\mathbf{H}\mathbf{x}_{t_{i}} + \mathbf{D}\mathbf{u}_{t}\\
+									\vdots\\
+									\mathbf{H}\mathbf{x}_{t_{i-N_{slc}}} + \mathbf{D}\mathbf{u}_{t_{i-N_{slc}}}\\
+								\end{bmatrix}.
+\end{equation}
+This expression can be vectorized as:
+\begin{equation}
+	\mathbf{\Phi}_{t_i} = \hat{\mathbf{H}} \hat{\mathbf{x}}_{t_i} + \hat{\mathbf{D}} \hat{\mathbf{u}}_{t_i},
+\end{equation}
+where $\hat{\mathbf{H}}$ respectively $\hat{\mathbf{D}}$ are block diagonal matrices with $\mathbf{H}$ and $\mathbf{D}$ on the main diagonal and $\hat{\mathbf{x}}_{t_i}$ is the augmented state vector containing all states from $t_{i-N_{slc}}$ to $t_{i}$.
+Using the state recursion equation, $\hat{\mathbf{x}}_{t_i}$ can be written as a function of the previous augmented state.
+The interferograms  are obtained from the SLC vector using the  $N_{stack}\times N_{slc}$ incidence matrix $\mathbf{A}$, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack obtained from SLCs $k$ and $l$\cite{Agram2015}:
 \begin{equation}
 	 \Delta\mathbf{\Phi}_{i} = \mathbf{A} \mathbf{\Phi}_{i}.
 \end{equation}
-Using the state recursion and the output matrix, the vector of SLC phases can be expressed as a function of the state at time $t_i$ in analogy to \autoref{eq:state_recursion_explicit}:
-\begin{equation}
-	\Delta\mathbf{\Phi_{i}} 
-		\begin{bmatrix}
-			\mathbf{d}_{t_{i}}\\
-			\vdots\\
-			\mathbf{d}_{t_{i-N_{slc}}}\\
-		\end{bmatrix}
-		=\begin{bmatrix}
-		 	\mathbf{H} \left(\mathbf{F}_{t_i} \mathbf{x}_{t_{i}}\right)\\
-		 	\vdots\\
-		 	\mathbf{H} \left(\prod_{k=i+n}^{i}\mathbf{F}_k\right)\\
-		 	\vdots\\
-		 	\mathbf{H} \left(\mathbf{I} -\prod_{k=i+N_{stack}}^{i}\mathbf{F}_k\right)
-		\end{bmatrix}\mathbf{x_i} = \mathbf{H}^{stack} \mathbf{x_i}
-\end{equation}
+Using the state recursion and the output matrix, the vector of SLC phases can be expressed as a function of the state at time $t_{i-N_{slc}}$ in analogy to~\autoref{eq:state_recursion_explicit}:
 
 \section{Single Reference Stack}
 If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\Delta\phi_{i}$ can be expressed as a function of the model output $\phi_i$:
 \begin{equation}
 	\Delta\phi_{i,i+1} = \phi_{i} - \phi_{i + 1}.
 \end{equation} 
-Using the linear model of \autoref{sec:displacement_model}, the interferometric phase difference can be expressed as a function of the model state $\mathbf{x}$ at times $i$ and $i+1$ as:
+Using the linear model of~\autoref{sec:displacement_model}, the interferometric phase difference can be expressed as a function of the model state $\mathbf{x}$ at times $i$ and $i+1$ as:
 \begin{equation}
 	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x}_i - \mathbf{x}_{i+1}\right),
 \end{equation}
@@ -190,7 +189,7 @@ This can be expressed as a matrix-vector multiplication:
 	 \Delta\mathbf{\Phi_{i}} = \mathbf{A} \mathbf{\Phi_{i}}.
 \end{equation}
 where $\mathbf{\Phi_{i}}$ is the vector of SLC phases and $\mathbf{A}$ is the $N_{stack}\times N_{slc}$ incidence matrix of interferograms, with $A_{m,j} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack\cite{Agram2015}.\\
-Considering again the linear model of \autoref{sec:displacement_model}, the SLC vector  $\mathbf{\Phi_{i}}$ can be expressed from $\mathbf{x_i}$:
+Considering again the linear model of~\autoref{sec:displacement_model}, the SLC vector  $\mathbf{\Phi_{i}}$ can be expressed from $\mathbf{x_i}$:
 \begin{equation}
 	 \mathbf{\Phi_{i}} = 
 	 \begin{bmatrix}
@@ -222,11 +221,11 @@ The Kalman filter can be used to obtain posterior estimates of the displacement 
 		&\state{\mathbf{\hat{x}}}{i}{i-1} = \mathbf{F} \state{\mathbf{\hat{x}}}{i-1}{i-1}\\
 		&\state{\mathbf{P}}{k}{k-1} = \mathbf{F} \state{\mathbf{P}}{k-1}{k-1} \mathbf{F}^\mathsf{T} + \mathbf{Q}_{k}
 	\end{align}
-	\item Update: when a new SLC is available, the stack index $i$ is advanced by one and the new stack is computed according to \autoref{eq:stack}. In Kalman filter terminology, the stack $\Delta\mathbf{\Phi_i} $corresponds to the observation. Using the computed stack and the measurement equation of \autoref{eq:stack_observation}, the measurement residual  between the data and the predicted stack from the prior state is calculated:
+	\item Update: when a new SLC is available, the stack index $i$ is advanced by one and the new stack is computed according to~\autoref{eq:stack}. In Kalman filter terminology, the stack $\Delta\mathbf{\Phi_i} $corresponds to the observation. Using the computed stack and the measurement equation of~\autoref{eq:stack_observation}, the measurement residual  between the data and the predicted stack from the prior state is calculated:
 	\begin{equation}
 		\tilde{\mathbf{y}}_i = \Delta\mathbf{\Phi_i} - \mathbf{\Pi} \state{\mathbf{\hat{x}}}{i}{i-1}
 	\end{equation}
-	The residual covariance is estimated using the prior covariance of \autoref{eq:prediction}  and the measurement of \autoref{eq:stack_output}:
+	The residual covariance is estimated using the prior covariance of~\autoref{eq:prediction}  and the measurement of~\autoref{eq:stack_output}:
 	\begin{equation}
 		\mathbf{S}_i = \mathbf{\Pi} \state{\mathbf{P}}{i}{i-1}{\mathbf{\Pi}}^\mathsf{T}
 	\end{equation}
@@ -244,7 +243,7 @@ The Kalman filter can be used to obtain posterior estimates of the displacement 
 	\state{\mathbf{P}}{i}{i} = \left(\mathbf{I} - \mathbf{K}_i\mathbf{\Pi}\right)\state{\mathbf{P}}{i}{i-1}
 	\end{equation}
 \end{itemize}
-With this method, a new SLC image can be used to estimate updated displacement model parameter "online" using the previously estimated parameters and the stack formed with \autoref{eq:stack}.
+With this method, a new SLC image can be used to estimate updated displacement model parameter "online" using the previously estimated parameters and the stack formed with~\autoref{eq:stack}.
 \section{Correlation Model}
 \bibliographystyle{ieeetr}
 \bibliography{../../Texts/library}
