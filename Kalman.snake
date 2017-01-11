@@ -549,6 +549,7 @@ rule prepare_kalman:
     input:
         unw = lambda wildcards: stack.next_stack_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', index='i',  **itab_par),
         cc = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc', index='i',  **itab_par),
+        unw_mask = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.unw_mask.bmp', index='i',  **itab_par),
         diff_pars = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par', index='i',  **itab_par),
         mli_pars = lambda wildcards: stack.next_stack_dates(wildcards, 'mli/{stop_dt}_{chan}.mli.par', index='i',  **itab_par),
         itab = 'kalman/{start_dt}_{chan}.itab'

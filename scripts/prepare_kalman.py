@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import itertools as it
 import scipy as sp
+import scipy.misc as misc
 import numpy as np
 import pyrat.fileutils.gpri_files as gpf
 import os
@@ -17,6 +18,7 @@ import json
 import pyrat.diff.core as ifgrams
 
 
+
 import pyrat.visualization.visfun as vf
 
 def prepare_kalman(input, output, threads, config, params, wildcards):
@@ -28,6 +30,8 @@ def prepare_kalman(input, output, threads, config, params, wildcards):
     #Create itab
     #Read in the input stack
     stack = ifgrams.Stack(input.diff_pars, input.unw, input.mli_pars, input.itab)
+    #Load the unwrapping mask
+    mask = misc.imread(input.unw_mask, mode='L')
     #get number of states
     nstates = config['kalman']['nstates']
     ifgram_shape = stack[0].shape

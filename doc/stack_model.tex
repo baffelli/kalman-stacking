@@ -17,11 +17,11 @@
 Consider the general time-discrete Latent Linear Dynamical System (LDS)\cite{Barber2011}:
 \begin{equation}\label{eq:state_recursion}
 	\begin{aligned}
-		\mathbf{x}_t &= \mathbf{F}_t \mathbf{x}_{t-1} + \mathbf{w}_t \quad \mathbf{w}_t \sim \normdist{0}{\mathbf{Q_t}} \\
-		\mathbf{y}_{t} &= \mathbf{H}_{t}  \mathbf{x}_{t} + \mathbf{v}_t \quad \mathbf{v}_t   \sim \normdist{0}{\mathbf{R}_t}
+		\mathbf{x}_t &= \mathbf{F}_t \mathbf{x}_{t-1} + \mathbf{C} \mathbf{u}_t + \mathbf{w}_t \quad \mathbf{w}_t \sim \normdist{0}{\mathbf{Q_t}} \\
+		\mathbf{y}_{t} &= \mathbf{H}_{t}  \mathbf{x}_{t} +  \mathbf{D} \mathbf{u}_t + \mathbf{v}_t \quad \mathbf{v}_t   \sim \normdist{0}{\mathbf{R}_t}
 	\end{aligned}
 \end{equation}
-that describes the evolution of the hidden state $\mathbf{x_t}$ of a stochastic linear dynamical system, of which we observe $\mathbf{y}_t$, a transformed version of the hidden state corrupted by zero mean additive Gaussian noise with covariance matrix $\mathbf{R}_t$. \\
+that describes the evolution of the hidden state $\mathbf{x_t}$ of a stochastic linear dynamical system, of which we observe $\mathbf{y}_t$, a transformed version of the hidden state corrupted by zero mean additive Gaussian noise with covariance matrix $\mathbf{R}_t$. Additionally, the system can be influenced by an external input $u_{t}$ through the matrices $\mathbf{C}$ and $\mathbf{D}$. \\
 For example, for an uniform linear motion the state vector $\mathbf{x}_t$ would consist of position and velocity at each time $t$:
 \begin{equation}\label{eq:simplified_state}
 \mathbf{x}_t = 
@@ -30,7 +30,7 @@ For example, for an uniform linear motion the state vector $\mathbf{x}_t$ would 
 		v_{t}
 	\end{bmatrix}
 \end{equation}
-where $d_t$ is the distance from the point to a (non-moving) reference point and $v_t$ is the velocity of the motion. $\mathbf{F}_t$ describes the evolution of the parameters from $t$ to $t+1$: 
+where $d_t$ is the distance from the point to a (non-moving) reference point and $v_t$ is the velocity of the motion. $\mathbf{F}_t$ describes the evolution of the parameters from $t$ to $t+1$. In the case of an uniform motion, $\mathbf{F}_t$ would be: 
 \begin{equation}\label{eq:simplified_F}
 	\mathbf{x}_t = 
 		\begin{bmatrix}
@@ -66,17 +66,21 @@ Thus, the SLC phase can be expressed as:
 		\end{bmatrix} \mathbf{x}_{t}
 		+  r_t^{ref}
 		\right) + 2 \pi n\\
-		 &= \left(\mathbf{H}_{t}\mathbf{x}_t + \mathbf{u}_t\right) + 2 \pi n
+		 &= \left(\mathbf{H}_{t}\mathbf{x}_t + \mathbf{D}\mathbf{u}_t\right) + 2 \pi n
 	\end{aligned}		
 \end{equation}
-That is the output $\mathbf{y}_t $ of the LDS plus an additional offset vector:
+That can be identified as an output $\mathbf{y}_t$ of the LDS with :
 \begin{equation}
-	\mathbf{u}_t = 
-	\begin{bmatrix}
-		r_{t}^{ref}\\
-		0
-	\end{bmatrix},
-\end{equation}	 modulo $2\pi$.
+	\begin{aligned}
+		\mathbf{H}_{t} &=		
+						\begin{bmatrix}
+							1 & 0
+						\end{bmatrix}
+		\mathbf{u}_t &= r_{t}^{ref}\\
+		\mathbf{D}_t &=1\\
+	\begin{aligned}
+\end{equation}	
+modulo $2\pi$.\\
 Usually, instead of considering the SLC phase, interferograms are formed between acquisitions at different times $t_i$ and $t_j$. By doing so, all systematic effects are removed; theoretically the interferograms phase $\Delta\phi_{t_i,t_j}$ is proportional to the change in distance from the point to the radar between acquisition $t_i$ and $t_j$ modulo $2\pi$:
 \begin{equation}
 	\Delta\phi_{t_i,t_j} =  \frac{4\pi}{\lambda} \left(r_{t_j} - r_{t_i}\right) + 2 \pi n
@@ -93,24 +97,42 @@ and it can be again expanded as a function of the hidden states:
 \begin{equation}\label{ifgram_phase}
 	\Delta\phi_{t_i,t_j} = \mathbf{H} \left( \mathbf{x}_{t_i} - \mathbf{x}_{t_j} \right) +2 n \pi.
 \end{equation}		
-Naively assuming that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm, the $2\pi n$ terms can be dropped as well, simplifying the subsequent derivations.
+Where the index $t$ in $\mathbf{H}$ has been dropped, because the output matrix does not change over time.
+Naively assuming that no phase wrapping occurs between $t_{i}$ and $t_{j}$ or that it is successfully resolved by a phase unwrapping algorithm, the $2\pi n$ terms can be removed as well, simplifying the subsequent derivations.
 Using \autoref{eq:state_recursion} the state $\mathbf{x}_{t_j}$ can be expressed recursively as a function of the previous states, arriving at an expression that depends on $\mathbf{x}_{t_i}$ only:
-\begin{equation}
+\begin{equation}\label{eq:state_recursion_explicit}
 	\mathbf{x}_{t_j} = \prod_{t=t_{i}}^{t_j}\mathbf{F}_t \mathbf{x}_{t_i}.
 \end{equation}
 The interferometric phase can be then rewritten as:
-\begin{equation}
+\begin{equation}\label{eq:single_ifgram}
 	\Delta\phi_{t_i,t_j} = \mathbf{H} \left(\mathbf{I} - \prod_{t=t_{i}}^{t_j}\mathbf{F}_t \right)\mathbf{x}_{t_i}
 \end{equation}	
 where $\mathbf{H} = 
 	\begin{bmatrix}
 	 \frac{4\pi}{\lambda} & 0
 	\end{bmatrix}$.
-\subsection{Interferogram stack}
-Generally, it is desired to analyse a \emph{stack} $\Delta\mathbf{\Phi}_{i}$  of interferograms, that is a subset of length $N_{stack}$ interferograms computed from a sequence of $N_{slc}$ SLC phases starting from time $t_i$ up to time $t_{i+N_{SLC}}$ arranged in an SLC vector $\mathbf{\Phi}_i$. The interferogram phases  are obtained from the SLC vector using the  $N_{stack}\times N_{slc}$ incidence matrix $\mathbf{A}$, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack obtained from SLCs $k$ and $l$\cite{Agram2015}:
+\subsection{Modeling an Interferogram Stack}
+Generally, it is desired to analyse a \emph{stack} $\Delta\mathbf{\Phi}_{i}$  of interferograms, that is a subset of length $N_{stack}$ interferograms computed from a sequence of $N_{slc}$ SLC phases starting from time $t_{i-N_{slc}}$ up to time $t_{i}$ arranged in an SLC vector $\mathbf{\Phi}_i$. The interferogram phases  are obtained from the SLC vector using the  $N_{stack}\times N_{slc}$ incidence matrix $\mathbf{A}$, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack obtained from SLCs $k$ and $l$\cite{Agram2015}:
 \begin{equation}
 	 \Delta\mathbf{\Phi}_{i} = \mathbf{A} \mathbf{\Phi}_{i}.
 \end{equation}
+Using the state recursion and the output matrix, the vector of SLC phases can be expressed as a function of the state at time $t_i$ in analogy to \autoref{eq:state_recursion_explicit}:
+\begin{equation}
+	\Delta\mathbf{\Phi_{i}} 
+		\begin{bmatrix}
+			\mathbf{d}_{t_{i}}\\
+			\vdots\\
+			\mathbf{d}_{t_{i-N_{slc}}}\\
+		\end{bmatrix}
+		=\begin{bmatrix}
+		 	\mathbf{H} \left(\mathbf{F}_{t_i} \mathbf{x}_{t_{i}}\right)\\
+		 	\vdots\\
+		 	\mathbf{H} \left(\prod_{k=i+n}^{i}\mathbf{F}_k\right)\\
+		 	\vdots\\
+		 	\mathbf{H} \left(\mathbf{I} -\prod_{k=i+N_{stack}}^{i}\mathbf{F}_k\right)
+		\end{bmatrix}\mathbf{x_i} = \mathbf{H}^{stack} \mathbf{x_i}
+\end{equation}
+
 \section{Single Reference Stack}
 If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\Delta\phi_{i}$ can be expressed as a function of the model output $\phi_i$:
 \begin{equation}
