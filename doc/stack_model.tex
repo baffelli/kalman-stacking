@@ -121,98 +121,54 @@ Or using~\autoref{eq:slc_phase_output} :
 								\end{bmatrix}.
 \end{equation}
 This expression can be vectorized as:
-\begin{equation}
+\begin{equation}\label{eq:slc_vector}
 	\mathbf{\Phi}_{t_i} = \hat{\mathbf{H}} \hat{\mathbf{x}}_{t_i} + \hat{\mathbf{D}} \hat{\mathbf{u}}_{t_i},
 \end{equation}
 where $\hat{\mathbf{H}}$ respectively $\hat{\mathbf{D}}$ are block diagonal matrices with $\mathbf{H}$ and $\mathbf{D}$ on the main diagonal and $\hat{\mathbf{x}}_{t_i}$ is the augmented state vector containing all states from $t_{i-N_{slc}}$ to $t_{i}$.
-Using the state recursion equation, $\hat{\mathbf{x}}_{t_i}$ can be written as a function of the previous augmented state.
+Using the state recursion equation, $\hat{\mathbf{x}}_{t_i}$ can be written as a function of the previous augmented state:
+\begin{equation}\label{eq:augmented_state_recursion}
+	\begin{aligned}
+	\hat{\mathbf{x}}_{t_i} &= 
+	\begin{bmatrix}
+		\mathbf{x}_{t_{i}}\\
+		\mathbf{x}_{t_{i-1}}\\
+		\vdots\\
+		\mathbf{x}_{t_{i-N_{slc}}}\\
+	\end{bmatrix}
+	=
+	\begin{bmatrix}
+		\mathbf{F}_{t_{i}}\mathbf{x}_{t_{i-1}}\\
+		\mathbf{F}_{t_{i-1}}\mathbf{x}_{t_{i-2}}\\
+		\vdots\\
+		\mathbf{F}_{t_{i-{N_{slc}}}}\mathbf{x}_{t_{i-N_{slc} -1}}\\
+	\end{bmatrix}\\
+	&\begin{bmatrix}
+	\mathbf{F}_{t_i} & 0 & \dots & 0\\
+	0 & \mathbf{F}_{t_{i-1}} & \dots & 0\\
+	\vdots & 0 & \ddots & \vdots\\
+	\vdots & \vdots &  \dots & \mathbf{F}_{t_{i-{N_{slc}}}}
+	\end{bmatrix} 
+	\begin{bmatrix}
+			\mathbf{x}_{t_{i-1}}\\
+			\mathbf{x}_{t_{i-2}}\\
+			\vdots\\
+			\mathbf{x}_{t_{i-N_{slc} -1}}\\
+	\end{bmatrix} &= \hat{\mathbf{F}}_{t_i} \hat{\mathbf{x}}_{t_{i-1}}
+	\end{aligned}
+\end{equation}
 The interferograms  are obtained from the SLC vector using the  $N_{stack}\times N_{slc}$ incidence matrix $\mathbf{A}$, with $A_{m,k} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack obtained from SLCs $k$ and $l$\cite{Agram2015}:
 \begin{equation}
-	 \Delta\mathbf{\Phi}_{i} = \mathbf{A} \mathbf{\Phi}_{i}.
+	\hat{\mathbf{y}}_{t_i} = \Delta\mathbf{\Phi}_{t_i} = \mathbf{A} \mathbf{\Phi}_{t_i}.
 \end{equation}
-Using the state recursion and the output matrix, the vector of SLC phases can be expressed as a function of the state at time $t_{i-N_{slc}}$ in analogy to~\autoref{eq:state_recursion_explicit}:
-
-\section{Single Reference Stack}
-If an interferogram is formed between the $i-th$ and the $i + 1-th$ SLC, the interferogram phase $\Delta\phi_{i}$ can be expressed as a function of the model output $\phi_i$:
-\begin{equation}
-	\Delta\phi_{i,i+1} = \phi_{i} - \phi_{i + 1}.
-\end{equation} 
-Using the linear model of~\autoref{sec:displacement_model}, the interferometric phase difference can be expressed as a function of the model state $\mathbf{x}$ at times $i$ and $i+1$ as:
-\begin{equation}
-	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x}_i - \mathbf{x}_{i+1}\right),
-\end{equation}
-or 
-\begin{equation}
-	\Delta\phi_{i,i+1} = \mathbf{H} \left(\mathbf{x}_i - \mathbf{F}_{i+1}\mathbf{x}_i\right).
-\end{equation}
-or in a more compact form:
-\begin{equation}\label{eq:output_step_1}
-	\Delta\phi_{i,i+1} =  \mathbf{H} \left(\mathbf{I} - \mathbf{F}_{i+1} \right) \mathbf{x_i}.
-\end{equation}
-Notice that the matrix $\mathbf{F}$ depends on the index $i$; this allows to model for variable timesteps, where $\Delta t$ is not constant over the span of all acquisitions.
-Consequently,
-\begin{equation}\label{eq:output_step_2}
-	\Delta\phi_{i,i+2} =  \mathbf{H} \left(\mathbf{I} - \mathbf{F}_{i+2}\mathbf{F}_{i+1} \right) \mathbf{x_i}.
-\end{equation}
-By induction we then have that the interferogram between the $i-th$ and the $i+n-th$ SLC can be expressed as:
-\begin{equation}
-	\Delta\phi_{i,i+n} =  \mathbf{H} \left(\mathbf{I} - \prod_{k=i+n}^{i}\mathbf{F}_k\right) \mathbf{x_i}.
-\end{equation}
-Thus, a stack  $\Delta\mathbf{\Phi_{i}}$ of interferograms of length $N_{stack}$ referenced to acquisition $i$ can be modeled from the state variable at time $i$ $\mathbf{x_{i}}$ as:
-\begin{equation}
-	\Delta\mathbf{\Phi_{i}} =\begin{bmatrix}
-	 	\mathbf{H} \left(\mathbf{I} - \mathbf{F}_i\right)\\
-	 	\vdots\\
-	 	\mathbf{H} \left(\mathbf{I} - \prod_{k=i+n}^{i}\mathbf{F}_k\right)\\
-	 	\vdots\\
-	 	\mathbf{H} \left(\mathbf{I} -\prod_{k=i+N_{stack}}^{i}\mathbf{F}_k\right)
-	\end{bmatrix}\mathbf{x_i} = \mathbf{H}^{stack} \mathbf{x_i}
-\end{equation}
-\section{Multi Reference Stack}
-A similar model can be used for a multi-reference stack, where we consider a subset of length $N_{stack}$ interferograms  computed from all unique combinations of $N_{slc}$ SLCs. Ordering the interferograms lexicographically by the times of the master and slave acquisitions, the stack for all possible unique combinations is expressed as:
-\begin{equation}\label{eq:stack}
+Combining \autoref{eq:augmented_state_recursion} and \autoref{eq:slc_vector}, the stack phase at time $t_i$ can be  modeled using the following LDS:
+\begin{equation}\label{eq:state_recursion}
 	\begin{aligned}
-			 \Delta\mathbf{\Phi_{i}} =
-		\begin{bmatrix}
-			\phi_{i} - \phi_{i+1}\\
-			\phi_{i+1} - \phi_{i+2}\\
-			\vdots\\
-			\phi_{i+j} - \phi_{i+l}\\
-			\vdots\\
-			\phi_{i+N_{stack}} - \phi_{i+N_{stack} - 1}
-		\end{bmatrix}\\
-		\forall j,l : j < l < N_{stack}.
-		\end{aligned}
+		 \hat{\mathbf{x}}_{t_i} &= \hat{\mathbf{F}}_{t_i} \hat{\mathbf{x}}_{t_{i-1}}\\
+		\hat{\mathbf{y}}_{t_i} &= \mathbf{A}\hat{\mathbf{H}} \hat{\mathbf{x}}_{t} + \mathbf{A}\hat{\mathbf{D}} \hat{\mathbf{u}}_{t}
+	\end{aligned}
 \end{equation}
-This can be expressed as a matrix-vector multiplication:
-\begin{equation}
-	 \Delta\mathbf{\Phi_{i}} = \mathbf{A} \mathbf{\Phi_{i}}.
-\end{equation}
-where $\mathbf{\Phi_{i}}$ is the vector of SLC phases and $\mathbf{A}$ is the $N_{stack}\times N_{slc}$ incidence matrix of interferograms, with $A_{m,j} = 1, A_{m,l}=-1$ for the m-th interferogram in the stack\cite{Agram2015}.\\
-Considering again the linear model of~\autoref{sec:displacement_model}, the SLC vector  $\mathbf{\Phi_{i}}$ can be expressed from $\mathbf{x_i}$:
-\begin{equation}
-	 \mathbf{\Phi_{i}} = 
-	 \begin{bmatrix}
-	 	\mathbf{H}\\
-	 	\vdots\\
-	 	\mathbf{H} \prod_{k=i+j}^{i}\mathbf{F}_k\\
-	 	\vdots\\
-	 	\mathbf{H} \prod_{k=i+N_{slc}}^{i}\mathbf{F}_k
-	 \end{bmatrix} \mathbf{x_i}.
-\end{equation}
-from this, the stack $\Delta\mathbf{\Phi_{i}}$ is expressed as:
-\begin{equation}\label{eq:stack_output}
-	\Delta\mathbf{\Phi_{i}} = \mathbf{A} 
-			 \begin{bmatrix}
-			 	\mathbf{H}\\
-			 	\vdots\\
-			 	\mathbf{H} \prod_{k=i+j}^{i}\mathbf{F}_k\\
-			 	\vdots\\
-			 	\mathbf{H} \prod_{k=i+N_{slc}}^{i}\mathbf{F}_k
-			 \end{bmatrix}\mathbf{x_i} = \mathbf{\Pi} \mathbf{x_i},
-\end{equation}
-where $i$ is the index of the stack; representing a sort of "sliding window" of length $N_{stack}$ that is run over the slcs as the time runs.
-Thus, the stack at time $i$ can be considered the output of a linear system where the dynamics are described by the matrix $\mathbf{F}_i$ with $\Delta t$ the time interval between the first and the last SLC in the stack, while the output is given by the matrix $\mathbf{\Pi}$
+If the reference location is stable during the entire stack time, the term  $\hat{\mathbf{D}}\hat{\mathbf{u}}_{t}$ can be neglected.
+
 \section{Kalman Filter for Stacking}
 The Kalman filter can be used to obtain posterior estimates of the displacement model parameters given  observed interferogram stacks. The following steps are run recursively, whenever new SLC data is available:
 \begin{itemize}
