@@ -1,3 +1,4 @@
+import pyrat.diff.stack_modeling
 from pyrat.diff import kalman as ka
 import pyrat.diff.intfun as intfun
 import numpy as np
@@ -38,7 +39,7 @@ def prepare_kalman(input, output, threads, config, params, wildcards):
     # z = np.dstack(stack.stack).reshape((np.prod(ifgram_shape),) + (len(stack.stack),))
     # stack_dt = stack[0].master_par.start_time - stack[-1].slave_par.start_time
     # #Matrix for the stack transition
-    # F = intfun.F_model(stack_dt)
+    # F = pyrat.diff.stack_modeling.F_model(stack_dt)
     # #H matrix
     # phase_factor = np.pi * 4 / gpf.lam(stack[0].master_par.radar_frequency)
     # H_m = np.array([1,0]) * phase_factor
