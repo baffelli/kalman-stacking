@@ -1,0 +1,14 @@
+from snakemake.remote.SFTP import RemoteProvider, RemoteObject
+
+provider = RemoteProvider(port=22,username="baffelli", private_key="/home/baffelli/.ssh/id_rsa")
+
+rule untar_and_copy:
+        input:
+            tar = provider.remote("ifu-eo-srv-1.ethz.ch/local/unique_data/2015_GPRI_Dom/raw/{datetime}.tar", static=True),
+        output:
+            slc = 'slc_chan/{datetime}_{chan}.slc',
+            slc_par = 'slc_chan/{datetime}_{chan}.slc.par'
+        run:
+            shell("tar -xvf {input.tar} --directory ./slc_chan --strip=3 data/Dom/slc/{wildcards.datetime}_{wildcards.chan}.slc data/Dom/slc/{wildcards.datetime}_{wildcards.chan}.slc.par")
+
+
