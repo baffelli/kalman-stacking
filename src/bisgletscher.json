@@ -56,9 +56,9 @@
 	{
 		"ref": 1,
 		"step": 1,
-		"window": 5,
+		"max_distance": 1,
+		"stack_size": 10,
 		"stride": 1,
-		"nstack": 5,
         "nstates": 2
 	},
 	"aps":				{

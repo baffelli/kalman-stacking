@@ -24,6 +24,7 @@ def create_itab(input, output, threads, config, params, wildcards):
     #Create itab
     itab = pyrat.diff.utils.Itab(config['kalman']['nstack'], window=config['kalman']['window'], step=config['kalman']['step'], stride=config['kalman']['stride'], n_ref=config['kalman']['ref'])
     itab.tofile(output.itab)
+    itab.pickle(output.itab_pickle)
 
 
 create_itab(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,

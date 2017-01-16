@@ -384,20 +384,34 @@ rule diff_to_map:
 
 
 
-#Create the itab file used by the kalman filtererer
-rule create_itab:
+##Create the itab file used by the kalman filtererer
+#rule create_itab:
+#    output:
+#        itab = 'kalman/{start_dt}_{chan}.itab'
+#    script:
+#        'scripts/create_itab.py'
+
+
+#rule itab:
+#    output:
+#        itab = "int/{start_dt}_{chan}_{stop_dt}_{chan}.itab",
+#        itab = "int/{start_dt}_{chan}_{stop_dt}_{chan}.itab_pickle"
+#    script:
+#        'scripts/create_itab.py'
+
+rule create_interferogram_stack:
+    wildcard_constraints:
+        start_dt = dt_regex,
+        stop_dt = dt_regex,
     output:
-        itab = 'kalman/{start_dt}_{chan}.itab'
+        stack = "diff/{start_dt}_{chan}_{stop_dt}_{chan}.stack"
+    input:
+        unw = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
+        diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
+        mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
+        mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
     script:
-        'scripts/create_itab.py'
-
-
-rule itab:
-    output:
-        itab = "int/{start_dt}_{chan}_{stop_dt}_{chan}.itab"
-    script:
-        'scripts/create_itab.py'
-
+        'data/create_interferogram_stack.py'
 
 #Covariance of interferograms
 rule unwrapped_covariance:
@@ -409,9 +423,9 @@ rule unwrapped_covariance:
     input:
         unw = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
         diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
-        itab = 'int/{start_dt}_{chan}_{stop_dt}_{chan}.itab',
         mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
         mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
+#        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
     script:
         'analysis/interferogram_covariance.py'
 
@@ -421,12 +435,10 @@ rule prepare_kalman:
     output:
         z = 'kalman/Kalman_inputs_{start_dt}_{chan}_{i}',
     input:
-        unw = lambda wildcards: stack.next_stack_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', index='i',  **itab_par),
-        cc = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc', index='i',  **itab_par),
-        unw_mask = lambda wildcards: stack.next_stack_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw_mask.bmp', index='i',  **itab_par),
-        diff_pars = lambda wildcards: stack.next_stack_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par', index='i',  **itab_par),
-        mli_pars = lambda wildcards: stack.next_stack_dates(wildcards, 'mli/{stop_dt}_{chan}.mli.par', index='i',  **itab_par),
-        itab = 'kalman/{start_dt}_{chan}.itab'
+        unw = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
+        diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
+        mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
+        mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
     script:
         'scripts/prepare_kalman.py'
 
