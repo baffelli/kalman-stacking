@@ -23,8 +23,9 @@ def cov(input, output, threads, config, params, wildcards):
     #Compute outer product
     stack_outer = np.einsum('...i,...j->...ij', stack_matrix, stack_matrix)
     outer_smooth = cf.smooth(stack_outer, [5,5,1,1])
-    outer_diag = 1/np.sqrt(np.diagonal(np.diagonal(outer_smooth,axis1=-2, axis2=-1))
-    outer_smooth =  outer_diag[:,:,:,None] * outer_smooth
+    outer_diag = 1/np.sqrt(np.diagonal(outer_smooth,axis1=-2, axis2=-1))
+    print('Normalizing')
+    outer_coh = np.einsum('...i,...kl,...j->...ij',outer_diag, outer_smooth, outer_diag)
     names = ["{:%H %M}-{:%H %M}".format(s.master_time, s.slave_time) for s in stack.stack]
     print(names)
     #New figure
