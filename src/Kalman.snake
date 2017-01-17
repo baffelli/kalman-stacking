@@ -59,7 +59,7 @@ stack = utils.StackHelper(files)
 
 rule all:
     input:
-        'cov/20150830_060000_20150830_070000_BBBl.cov'
+        '../reports/figures/20150830_060000_20150830_070000_BBBl.png'
 
 
 
@@ -416,7 +416,8 @@ rule create_interferogram_stack:
 #Covariance of interferograms
 rule unwrapped_covariance:
     output:
-        R = 'cov/{start_dt}_{stop_dt}_{chan}.cov'
+#        R = 'cov/{start_dt}_{stop_dt}_{chan}.cov',
+        cov_image = '../reports/figures/{start_dt}_{stop_dt}_{chan}.{ext}'
     wildcard_constraints:
         start_dt = dt_regex,
         stop_dt = dt_regex,
