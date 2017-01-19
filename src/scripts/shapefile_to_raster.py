@@ -14,7 +14,7 @@ def shapefile_to_raster(inputs, outputs, threads, config, params, wildcards):
     outline = ogr.Open(inputs.mask)
 
     outline_layer = outline.GetLayer()
-    outline_layer.SetAttributeFilter("NAME = '{name}'".format(name=feature_name))
+    outline_layer.SetAttributeFilter("NAME = '{name}'".format(name=params.feature_name))
 
     x_min, x_max, y_min, y_max = outline_layer.GetExtent()
 

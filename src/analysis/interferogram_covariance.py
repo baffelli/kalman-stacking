@@ -45,6 +45,9 @@ def cov(input, output, threads, config, params, wildcards):
     stack_outer = cf.smooth(np.einsum('...i,...j->...ij', stack_matrix, stack_matrix.conj()), [5, 5, 1, 1])
     outer_diag = 1 / np.sqrt(np.diagonal(stack_outer, axis1=-2, axis2=-1))
     outer_coh = np.einsum('...j,...ij, ...i->...ij', outer_diag, stack_outer, outer_diag)
+    # l, w = np.linalg.eigh(stack_outer)
+    # plt.imshow(np.abs(l[:,:,0]))
+    # plt.show()
     # outer_l, outer_w = np.linalg.eigh(stack_outer)
     # Reshape
     outer_coh_im = cov_to_image(outer_coh)

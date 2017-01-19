@@ -18,7 +18,7 @@ import pyrat.diff.utils as utils
 configfile: './bisgletscher.json'
 
 #Useful regexes
-slc_regex = r"(?P<dt>\d{8}_\d{6})(_[A-B]{3}[l-u])?"
+slc_regex = "(\d{8})_(\d{6})((_[A-B]{3}[l-u]))?"
 dt_regex = "(\d{8})_(\d{6})"
 dtfmt = "%Y%m%d_%H%M%S"
 wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
@@ -32,11 +32,9 @@ include: pyrat.rules['geocoding']
 #Working directory
 workdir: "../data"
 
-
 #Subworkflow to get data
-
 subworkflow fetch_data:
-    snakefile: './data/fetch_data.snake'
+    snakefile: "./data/fetch_data.snake"
     workdir: "../data"
 
 
@@ -46,8 +44,8 @@ subworkflow fetch_data:
 
 
 
-include: pyrat.rules['geocoding']
-include: pyrat.rules['raw_to_slc']
+#include: pyrat.rules['geocoding']
+#include: pyrat.rules['raw_to_slc']
 
 #Parameters of the Itab file
 itab_par = config['kalman']
@@ -55,6 +53,7 @@ itab_par = config['kalman']
 #Initialize stack by checking the files in the folder
 files, = glob_wildcards("/mnt/unique_data/2015_GPRI_Dom/raw/{datetime}.tar")
 stack = utils.StackHelper(files)
+print(stack)
 
 
 rule all:
@@ -88,10 +87,12 @@ rule correct_squint_in_slc:
 #Convert shape file to tif containing the area to mask
 rule shapefile_to_raster:
     input:
-        mask = 'raw/geo/swissTLM3D-2016-tlm_gelaendename_Clip',
-        dem = 'raw/geo/swissALTI3D_2016_Clip.tif'
+        mask = 'geo/swissTLM3D-2016-tlm_gelaendename_Clip',
+        dem = 'geo/swissALTI3D_2016_Clip.tif'
     output:
         mask = 'geo/bisgletscher_mask.tif'
+    params:
+        feature_name = config['feature_name']
     script:
         'scripts/shapefile_to_raster.py'
 
@@ -226,11 +227,11 @@ rule ifgram:
         master_par = 'slc_desq/{mastername}.slc_dec.par',
         slave = 'slc_desq/{slavename}.slc_dec',
         slave_par = 'slc_desq/{slavename}.slc_dec.par',
-#        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
     output:
         int_par = 'int/{mastername}_{slavename}.int_par',
-#        ifgram = temp('int/{mastername}_{slavename}.int_unref'),
-        ifgram = 'int/{mastername}_{slavename}.int',
+        ifgram = temp('int/{mastername}_{slavename}.int_unref'),
+        ifgram_ref = 'int/{mastername}_{slavename}.int',
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
@@ -239,31 +240,9 @@ rule ifgram:
         mli2 = 'mli/{slavename}.mli',
         rlks = config['interferogram']['rlks'],
         azlks = config['interferogram']['azlks'],
-    run:
-        import numpy as np
-        import pyrat.fileutils.gpri_files as gpf
-        import snakemake
-        import json
-        shell("create_offset {input.master_par} {input.slave_par} {output.int_par} - {params.rlks} {params.azlks} 0")
-        shell(
-        "SLC_intf {input.master} {input.slave} {input.master_par} {input.slave_par} {output.int_par} {output.ifgram} {params.rlks} {params.azlks} - - 0 0 1 1 - - - -")
-        ifgram_par = gpf.par_to_dict(output.int_par)
-        master_par = gpf.par_to_dict(input.master_par)
-        slave_par = gpf.par_to_dict(input.slave_par)
-        bl = master_par.start_time - slave_par.start_time
-        ifgram_par.add_parameter('temporal_baseline', bl, unit='s')
-        ifgram_par.add_parameter('master_par', params.mli1 + '.par')
-        ifgram_par.add_parameter('slave_par', params.mli2 + '.par')
-        gpf.dict_to_par(ifgram_par, output.int_par)
-#        # Load reference coord
-#        with open(input.reference_coord) as inputfile:
-#            ref_coord =  gf.get_reference_coord(json.load(inputfile))
-#        # referencing
-#        ref_cmd = "cpx_math {{output.ifgram}} - {{output.ifgram_ref}} {wd} 0 {ridx} {azidx} {nr} {naz} - - - 1".format(
-#        ridx=ref_coord[0], azidx=ref_coord[1], nr=config['interferogram']['reference_region_size'][0],
-#        naz=config['interferogram']['reference_region_size'][1], wd=ifgram_par.interferogram_width)
-#        shell(ref_cmd)
-#        print("Temporal baseline:{bl}".format(bl=bl))
+        ws = config['interferogram']['reference_region_size'],
+    script:
+        'analysis/referenced_interferogram.py'
 
 
 rule rasmph:
@@ -352,23 +331,23 @@ rule diff_par:
         gpf.dict_to_par(par, output.diff_par)
 
 
-rule stacking:
-    output:
-        avg_ifgram  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff',
-        avg_ifgram_par  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff_par',
-    input:
-        ifgrams = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', **itab_par),
-        lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
-        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
-    wildcard_constraints:
-        start_dt = dt_regex,
-        stop_dt = dt_regex,
-    params:
-        ridx = 1173,
-        azidx = 112,
-        ws = 8
-    script:
-        'scripts/stacking.py'
+#rule stacking:
+#    output:
+#        avg_ifgram  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff',
+#        avg_ifgram_par  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff_par',
+#    input:
+#        ifgrams = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', **itab_par),
+#        lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
+#        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
+#    wildcard_constraints:
+#        start_dt = dt_regex,
+#        stop_dt = dt_regex,
+#    params:
+#        ridx = 1173,
+#        azidx = 112,
+#        ws = 8
+#    script:
+#        'scripts/stacking.py'
 
 
 #Projects a single corrected interferogram to a map
