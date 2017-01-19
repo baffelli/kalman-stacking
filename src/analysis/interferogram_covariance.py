@@ -6,13 +6,10 @@ import pyrat.core.corefun as cf
 import pyrat.diff.core as diff
 import pyrat.fileutils.gpri_files as gpf
 
+import pyrat.geo.geofun as gf
+import json
 
-def sample_nth(image, n_pts):
-    i = np.linspace(0, image.shape[0], n_pts[0]) // 1
-    j = np.linspace(0, image.shape[1], n_pts[1]) // 1
-    ii, jj = np.meshgrid(i, j)
-    return ii, jj
-
+import scipy.misc as misc
 
 def cov_to_image(cov_mat):
     image_shape = cov_mat.shape[0:2]
@@ -23,28 +20,35 @@ def cov_to_image(cov_mat):
 
 def cov(input, output, threads, config, params, wildcards):
     plt.rcParams['font.size']=14
-    # #Create itab
-    # itab=
     # Import the stack
     stack = diff.Stack(input.diff_pars, input.unw, input.mli_par)
     # Load one mli to display
     mli = gpf.gammaDataset(input.mli_par[-1], input.mli[-1])
+    #load reference
+    with open(input.reference_coord) as inputfile:
+       ref_coord =  gf.get_reference_coord(json.load(inputfile), 0)
+    #load mask
+    mask = misc.imread(input.mask).T
     # Convert it to a matrix
     # slice stable_area
     stable_slice = (slice(0, 1000), slice(0, None))
     # Slice MLI and interferograms
     mli = mli[stable_slice]
     stack_matrix = np.dstack(stack.stack)[stable_slice]
+    mask = mask[stable_slice]
     # Compute average ifgram and phase variance
     avg = np.mean(stack_matrix, axis=-1)
     phase_var = np.var(stack_matrix, axis=-1)
     # detect the locations of maximum and minimum variance
-    min_var_idx = np.unravel_index(np.argmin(phase_var), phase_var.shape)
-    max_var_idx = np.unravel_index(np.argmax(phase_var), phase_var.shape)
+    ref_idx = tuple(ref_coord)
+    max_var_idx = (ref_coord[0]+50, ref_coord[1] + 40)
     # Compute outer product
     stack_outer = cf.smooth(np.einsum('...i,...j->...ij', stack_matrix, stack_matrix.conj()), [5, 5, 1, 1])
     outer_diag = 1 / np.sqrt(np.diagonal(stack_outer, axis1=-2, axis2=-1))
     outer_coh = np.einsum('...j,...ij, ...i->...ij', outer_diag, stack_outer, outer_diag)
+    cov_im = cov_to_image(outer_coh[::5,::5])
+    plt.imshow(np.abs(cov_im),vmin=0,vmax=1)
+    plt.show()
     # l, w = np.linalg.eigh(stack_outer)
     # plt.imshow(np.abs(l[:,:,0]))
     # plt.show()
@@ -63,16 +67,19 @@ def cov(input, output, threads, config, params, wildcards):
     var_ax.imshow(phase_var, aspect=asp)
     mean_ax = f.add_subplot(gs[::, 1:2])
     mean_ax.imshow(avg, aspect=asp)
-    mean_ax.plot(*(min_var_idx[::-1]), marker='o', mfc='b')
+    mean_ax.imshow(mask, aspect=asp)
+    mean_ax.plot(*(ref_idx[::-1]), marker='o', mfc='b')
     mean_ax.plot(*(max_var_idx[::-1]), marker='o', mfc='r')
     mean_ax.set_title('Average Phase')
     var_ax.set_title('Phase variance')
     # Add inset axes
     # Plot covariance matrices
     cov_ax_min = f.add_subplot(gs[0:2:, 2::4])
-    cov_ax_min.imshow(np.abs(outer_coh[min_var_idx]), vmin=0, vmax=1)
+    cov_ax_min.imshow(np.abs(outer_coh[ref_idx]), vmin=0, vmax=1)
+    cov_ax_min.set_title('Reference location')
     cov_ax_max = f.add_subplot(gs[2::, 2::4])
     cov_ax_max_mappable = cov_ax_max.imshow(np.abs(outer_coh[max_var_idx]), vmin=0, vmax=1)
+    cov_ax_min.set_title('Test location')
     # Add colorbar
     cbar_ax = f.add_subplot(gs[::, -1])
     cbar = f.colorbar(cov_ax_max_mappable, cax=cbar_ax)
@@ -92,9 +99,9 @@ def cov(input, output, threads, config, params, wildcards):
     mean_ax.annotate('', xy=max_var_idx[::-1], xytext=(nstack, nstack), xycoords=mean_ax.transData,
                      textcoords=cov_ax_max.transData, arrowprops=arrowprops)
 
-    mean_ax.annotate('', xy=min_var_idx[::-1], xytext=(0, 0), xycoords=mean_ax.transData,
+    mean_ax.annotate('', xy=ref_idx[::-1], xytext=(0, 0), xycoords=mean_ax.transData,
                      textcoords=cov_ax_min.transData, arrowprops=arrowprops)
-    mean_ax.annotate('', xy=min_var_idx[::-1], xytext=(nstack, nstack), xycoords=mean_ax.transData,
+    mean_ax.annotate('', xy=ref_idx[::-1], xytext=(nstack, nstack), xycoords=mean_ax.transData,
                      textcoords=cov_ax_min.transData, arrowprops=arrowprops)
     # ax.set_title('Interferogram Correlation')
     # cov_ax_1 = f.add_subplot(gs[2::, 2::])

@@ -289,7 +289,7 @@ rule unwrap:
         cc_mask = "diff/{mastername}_{slavename}.cc_mask.bmp",
         cc = "int/{mastername}_{slavename}.cc.sm",
         mli_par = 'mli/{mastername}.mli.par',
-#        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
     output:
         unw = 'diff/{mastername}_{slavename}.unw',
     params:
@@ -300,13 +300,13 @@ rule unwrap:
     run:
         import pyrat.fileutils.gpri_files as gpf
         import numpy as np
-#        #read location of reference point
-#        with open(input.reference_coord) as inputfile:
-#            ref_coord =  gf.get_reference_coord(json.load(inputfile))
+        #read location of reference point
+        with open(input.reference_coord) as inputfile:
+            ref_coord =  gf.get_reference_coord(json.load(inputfile), 0)
 #        #get width of data
         wd = gpf.par_to_dict(input.mli_par)['range_samples']
         #unwrap data
-        mcf_cmd = "mcf {{input.ifgram}} {{input.cc}} {{input.cc_mask}} {{output.unw}} {wd} {{params.mode}} - - - - 1 1 - - - 1 ".format(wd=wd)
+        mcf_cmd = "mcf {{input.ifgram}} {{input.cc}} {{input.cc_mask}} {{output.unw}} {wd} {{params.mode}} - - - - 1 1 - {rinit} {azinit} 1 ".format(wd=wd, rinit=ref_coord[0], azinit=ref_coord[1])
         shell(mcf_cmd)
 
 
@@ -406,6 +406,8 @@ rule unwrapped_covariance:
         mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
         mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
 #        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
+        reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
+        mask = 'geo/bisgletscher_mask.bmp'
     script:
         'analysis/interferogram_covariance.py'
 
