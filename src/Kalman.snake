@@ -41,9 +41,6 @@ subworkflow fetch_data:
 
 
 
-
-
-
 #include: pyrat.rules['geocoding']
 #include: pyrat.rules['raw_to_slc']
 
@@ -58,6 +55,7 @@ print(stack)
 
 rule all:
     input:
+        '../data/geo/Dom.mli_gc.tif',
         '../reports/figures/20150830_060000_20150830_070000_BBBl.png'
 
 
@@ -117,7 +115,6 @@ rule glacier_mask:
     output:
         mask = 'geo/bisgletscher_mask.bmp'
     run:
-        3
         shell('cp {input.mask} {output.mask}')
 
 
@@ -163,11 +160,8 @@ rule cc:
     params:
         rlks = config['interferogram']['rlks'],
         azlks = config['interferogram']['azlks']
-    run:
-       import pyrat.fileutils.gpri_files as gpf
-       wd = gpf.par_to_dict(input.mli1_par)['range_samples']
-       cc_cmd = "cc_wave {{input.ifgram}} {{input.mli1}} {{input.mli2}} {{output.cc}} {wd} {{params.rlks}} {{params.azlks}} 0".format(wd=wd)
-       shell(cc_cmd)
+    script:
+       './scripts/cc.py'
 
 rule cc_mask:
     output:
@@ -245,22 +239,22 @@ rule ifgram:
         'analysis/referenced_interferogram.py'
 
 
-rule rasmph:
-    output:
-        ras = 'int/{mastername}_{slavename}.int.bmp',
-    input:
-        master_mli = 'mli/{mastername}.mli',
-        int_par = 'int/{mastername}_{slavename}.int_par',
-        ifgram = 'int/{mastername}_{slavename}.int.sm',
-        cc = 'int/{mastername}_{slavename}.cc.sm',
-    wildcard_constraints:
-        mastername=slc_regex,
-        slavename=slc_regex,
-    run:
-        import pyrat.fileutils.gpri_files as gpf
-        wd = gpf.par_to_dict(input.int_par)['interferogram_width']
-        rascmd = "rasmph_pwr {{input.ifgram}} {{input.master_mli}} {wd} - - - - - - - - {{output.ras}} {{input.cc}}".format(wd=wd)
-        shell(rascmd)
+#rule rasmph:
+#    output:
+#        ras = 'int/{mastername}_{slavename}.int.bmp',
+#    input:
+#        master_mli = 'mli/{mastername}.mli',
+#        int_par = 'int/{mastername}_{slavename}.int_par',
+#        ifgram = 'int/{mastername}_{slavename}.int.sm',
+#        cc = 'int/{mastername}_{slavename}.cc.sm',
+#    wildcard_constraints:
+#        mastername=slc_regex,
+#        slavename=slc_regex,
+#    run:
+#        import pyrat.fileutils.gpri_files as gpf
+#        wd = gpf.par_to_dict(input.int_par)['interferogram_width']
+#        rascmd = "rasmph_pwr {{input.ifgram}} {{input.master_mli}} {wd} - - - - - - - - {{output.ras}} {{input.cc}}".format(wd=wd)
+#        shell(rascmd)
 
 
 #Smooth interferogram
@@ -274,11 +268,12 @@ rule adf:
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
-    run:
-        import pyrat.fileutils.gpri_files as gpf
-        wd = gpf.par_to_dict(input.mli_par)['range_samples']
-        adf_cmd = "adf {{input.ifgram}} {{output.int_sm}} {{output.cc}} {wd} {{config[interferogram][adf_alpha]}} {{config[interferogram][adf_window]}}".format(wd=wd)
-        shell(adf_cmd)
+    params:
+        adf_window =config['interferogram']['adf_window'],
+        adf_alpha =config['interferogram']['adf_alpha']
+    script:
+        './scripts/adf.py'
+
 
 ##Compute unwrapped interferogram
 rule unwrap:
@@ -297,17 +292,8 @@ rule unwrap:
     wildcard_constraints:
         mastername=slc_regex,
         slavename=slc_regex,
-    run:
-        import pyrat.fileutils.gpri_files as gpf
-        import numpy as np
-        #read location of reference point
-        with open(input.reference_coord) as inputfile:
-            ref_coord =  gf.get_reference_coord(json.load(inputfile), 0)
-#        #get width of data
-        wd = gpf.par_to_dict(input.mli_par)['range_samples']
-        #unwrap data
-        mcf_cmd = "mcf {{input.ifgram}} {{input.cc}} {{input.cc_mask}} {{output.unw}} {wd} {{params.mode}} - - - - 1 1 - {rinit} {azinit} 1 ".format(wd=wd, rinit=ref_coord[0], azinit=ref_coord[1])
-        shell(mcf_cmd)
+    script:
+        './scripts/mcf.py'
 
 
 
@@ -331,23 +317,7 @@ rule diff_par:
         gpf.dict_to_par(par, output.diff_par)
 
 
-#rule stacking:
-#    output:
-#        avg_ifgram  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff',
-#        avg_ifgram_par  = 'stack/{start_dt}_stack_{stop_dt}_{chan}.diff_par',
-#    input:
-#        ifgrams = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw', **itab_par),
-#        lut = 'geo/' + config['geocoding']['table_name']  + '.gpri_to_dem',
-#        dem_par = 'geo/' + config['geocoding']['table_name']  + '.dem_seg.par',
-#    wildcard_constraints:
-#        start_dt = dt_regex,
-#        stop_dt = dt_regex,
-#    params:
-#        ridx = 1173,
-#        azidx = 112,
-#        ws = 8
-#    script:
-#        'scripts/stacking.py'
+
 
 
 #Projects a single corrected interferogram to a map
@@ -363,20 +333,6 @@ rule diff_to_map:
 
 
 
-##Create the itab file used by the kalman filtererer
-#rule create_itab:
-#    output:
-#        itab = 'kalman/{start_dt}_{chan}.itab'
-#    script:
-#        'scripts/create_itab.py'
-
-
-#rule itab:
-#    output:
-#        itab = "int/{start_dt}_{chan}_{stop_dt}_{chan}.itab",
-#        itab = "int/{start_dt}_{chan}_{stop_dt}_{chan}.itab_pickle"
-#    script:
-#        'scripts/create_itab.py'
 
 rule create_interferogram_stack:
     wildcard_constraints:
@@ -405,7 +361,7 @@ rule unwrapped_covariance:
         diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
         mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
         mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
-#        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
+        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc',  **itab_par),
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         mask = 'geo/bisgletscher_mask.bmp'
     script:
