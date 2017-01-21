@@ -17,7 +17,7 @@ def cov_to_image(cov_mat):
     new_shape = [image_shape[0] * cov_shape[0], image_shape[1] * cov_shape[1]]
     return cov_mat.reshape(new_shape)
 
-def points_with_distance(center, d,n_points, d_min=0):
+def points_with_distance(center, d,n_points=100, d_min=0):
     r = np.random.uniform(d_min,d, n_points)
     th = np.random.uniform(0, np.pi*2, n_points)
     rr, tt =  np.meshgrid(r, th, indexing='ij')
@@ -30,13 +30,14 @@ def normalize_covariance(c):
     outer_coh = np.einsum('...j,...ij, ...i->...ij', outer_diag, c, outer_diag)
     return outer_coh
 
-def covariance_with_increasing_distance(outer_matrix, center, r_min, r_max, dr, nr, n_points=100):
+def covariance_with_increasing_distance(outer_matrix, center, r_min, r_max, dr=20, nr=100, n_points=100):
     cov = []
-    for r in np.arange(r_min, r_max, nr):
-        rr, tt = points_with_distance(center, n_points, r, r+dr)
+    for r in np.linspace(r_min, r_max, num=nr):
+        
+        rr, tt = points_with_distance(center,r + dr,  n_points=n_points, d_min=r-dr)
         rr = np.clip(rr,0,outer_matrix.shape[0]-1)
         tt = np.clip(tt, 0, outer_matrix.shape[1]-1)
-        current_coh = np.mean(outer_matrix[rr.astype(np.int),tt.astype(np.int)],axis=(0,1))
+        current_coh = normalize_covariance(np.mean(outer_matrix[rr.astype(np.int),tt.astype(np.int)],axis=(0,1)))
         cov.append(current_coh)
         # plt.imshow(np.abs(outer_matrix[:,:,0,0]))
         # plt.scatter(tt,rr)
@@ -75,7 +76,7 @@ def cov(input, output, threads, config, params, wildcards):
     outer_coh = normalize_covariance(stack_outer)
     cov_im = cov_to_image(outer_coh[::5,::5])
     #Try with increasing distance
-    anulus_coh = covariance_with_increasing_distance(outer_coh, ref_idx, 0, 500, 20, 100, n_points=100)
+    anulus_coh = covariance_with_increasing_distance(stack_outer, ref_idx, 0, 500, nr=100, n_points=100)
     plt.imshow(np.abs(anulus_coh),vmin=0,vmax=1)
     plt.show()
     #Acquisition times
