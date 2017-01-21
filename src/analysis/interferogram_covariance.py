@@ -33,7 +33,7 @@ def normalize_covariance(c):
 def covariance_with_increasing_distance(outer_matrix, center, r_min, r_max, dr=20, nr=100, n_points=100):
     cov = []
     for r in np.linspace(r_min, r_max, num=nr):
-        
+
         rr, tt = points_with_distance(center,r + dr,  n_points=n_points, d_min=r-dr)
         rr = np.clip(rr,0,outer_matrix.shape[0]-1)
         tt = np.clip(tt, 0, outer_matrix.shape[1]-1)
