@@ -26,7 +26,7 @@ wildcard_re = "\{\S+\.(?<wildcard_name>\S+)\}"
 
 
 include: pyrat.rules['geocoding']
-
+include: pyrat.rules['raw_to_slc']
 
 
 #Working directory
@@ -50,12 +50,11 @@ itab_par = config['kalman']
 #Initialize stack by checking the files in the folder
 files, = glob_wildcards("/mnt/unique_data/2015_GPRI_Dom/raw/{datetime}.tar")
 stack = utils.StackHelper(files)
-print(stack)
 
 
 rule all:
     input:
-        '../data/geo/Dom.mli_gc.tif',
+#        'geo/Dom.mli_gc.tif',
         '../reports/figures/20150830_060000_20150830_070000_BBBl.png'
 
 
@@ -67,26 +66,30 @@ rule all:
 ##############################################################################
 ## Correct squint from existing data
 rule correct_squint_in_slc:
-		input:
-			slc = fetch_data("slc_chan/{dataname}_{chan,[A-B]{3}}{rx}.slc"),
-			slc_par = fetch_data("slc_chan/{dataname}_{chan,[A-B]{3}}{rx}.slc.par"),
-		output:
-			corr =  "slc_desq/{dataname}_{chan,[A-B]{3}}{rx}.slc",
-			corr_par = "slc_desq/{dataname}_{chan,[A-B]{3}}{rx}.slc.par"
-		params:
-			squint_rate = lambda wildcards: config["desquint"]["{chan}_squint_rate".format(chan=wildcards.chan)],
-		run:
-			slc = gpf.gammaDataset(input.slc_par, input.slc)
-			raw_desq = gpf.correct_squint_in_SLC(slc, squint_rate=params.squint_rate)
-			raw_desq.tofile(output.corr_par, output.corr)
+    input:
+        slc = fetch_data("slc_chan/{dataname}_{chan}{rx}.slc"),
+        slc_par = fetch_data("slc_chan/{dataname}_{chan}{rx}.slc.par"),
+    output:
+        corr =  "slc_desq/{dataname}_{chan}{rx}.slc",
+        corr_par = "slc_desq/{dataname}_{chan}{rx}.slc.par"
+    params:
+        squint_rate = lambda wildcards: config["desquint"]["{chan}_squint_rate".format(chan=wildcards.chan)],
+    run:
+        slc = gpf.gammaDataset(input.slc_par, input.slc)
+        raw_desq = gpf.correct_squint_in_SLC(slc, squint_rate=params.squint_rate)
+        raw_desq.tofile(output.corr_par, output.corr)
+    wildcard_constraints:
+        dataname=dt_regex,
+        chan="(A|B){3}",
+        rx="(l|u)"
 
 
 
 #Convert shape file to tif containing the area to mask
 rule shapefile_to_raster:
     input:
-        mask = 'geo/swissTLM3D-2016-tlm_gelaendename_Clip',
-        dem = 'geo/swissALTI3D_2016_Clip.tif'
+        mask = fetch_data('geo/swissNAMES3D_LV95'),
+        dem = 'geo/Dom.tif'
     output:
         mask = 'geo/bisgletscher_mask.tif'
     params:
@@ -357,11 +360,11 @@ rule unwrapped_covariance:
         start_dt = dt_regex,
         stop_dt = dt_regex,
     input:
-        unw = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'diff/{start_dt}_{chan}_{stop_dt}_{chan}.unw',  **itab_par),
-        diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
-        mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
-        mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
-        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc',  **itab_par),
+        slc = lambda wildcards: stack.all_patterns_between_dates(wildcards, 'slc_desq/{datetime}_{chan}.slc_dec'),
+#        diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
+#        mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
+#        mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
+#        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc',  **itab_par),
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         mask = 'geo/bisgletscher_mask.bmp'
     script:
