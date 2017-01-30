@@ -88,7 +88,7 @@ rule correct_squint_in_slc:
 #Convert shape file to tif containing the area to mask
 rule shapefile_to_raster:
     input:
-        mask = fetch_data('geo/swissNAMES3D_LV95'),
+        mask = 'geo/swissTLM3D-2016-tlm_gelaendename_Clip.zip',
         dem = 'geo/Dom.tif'
     output:
         mask = 'geo/bisgletscher_mask.tif'
@@ -361,10 +361,7 @@ rule unwrapped_covariance:
         stop_dt = dt_regex,
     input:
         slc = lambda wildcards: stack.all_patterns_between_dates(wildcards, 'slc_desq/{datetime}_{chan}.slc_dec'),
-#        diff_pars = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.int_par',  **itab_par),
-#        mli_par = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli.par',  **itab_par),
-#        mli = lambda wildcards: stack.itab_entries_between_dates(wildcards, 'mli/{start_dt}_{chan}.mli',  **itab_par),
-#        cc =lambda wildcards: stack.itab_entries_between_dates(wildcards, 'int/{start_dt}_{chan}_{stop_dt}_{chan}.cc',  **itab_par),
+        slc_par = lambda wildcards: stack.all_patterns_between_dates(wildcards, 'slc_desq/{datetime}_{chan}.slc_dec.par'),
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         mask = 'geo/bisgletscher_mask.bmp'
     script:

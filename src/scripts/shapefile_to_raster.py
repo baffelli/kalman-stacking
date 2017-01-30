@@ -11,8 +11,9 @@ def shapefile_to_raster(inputs, outputs, threads, config, params, wildcards):
     pixepixel_height = gt[5]
 
     #Select only desired feature
-    outline = ogr.Open(inputs.mask)
-
+    shapefile_path = '/vsizip/' + inputs.mask
+    outline = ogr.Open(shapefile_path)
+    print(outline)
     outline_layer = outline.GetLayer()
     outline_layer.SetAttributeFilter("NAME = '{name}'".format(name=params.feature_name))
 
