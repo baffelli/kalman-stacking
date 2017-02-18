@@ -363,6 +363,8 @@ rule unwrapped_covariance:
         slc = lambda wildcards: stack.all_patterns_between_dates(wildcards, 'slc_desq/{datetime}_{chan}.slc_dec'),
         slc_par = lambda wildcards: stack.all_patterns_between_dates(wildcards, 'slc_desq/{datetime}_{chan}.slc_dec.par'),
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
+        ref_mli = 'geo/' + config['geocoding']['table_name'] +'.mli',
+        ref_mli_par = 'geo/' + config['geocoding']['table_name'] +'.mli.par',
         mask = 'geo/bisgletscher_mask.bmp'
     script:
         'analysis/interferogram_covariance.py'

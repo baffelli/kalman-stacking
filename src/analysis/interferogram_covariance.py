@@ -11,6 +11,10 @@ import pyrat.diff.utils as utils
 import pyrat.geo.geofun as gf
 import json
 
+import pyrat.visualization.visfun as vf
+
+import pyrat.core.block_processing as bf
+
 import scipy.misc as misc
 
 def cov_to_image(cov_mat):
@@ -50,12 +54,33 @@ def covariance_with_increasing_distance(outer_matrix, center, r_min, r_max, dr, 
 def outer_product(A):
     return np.einsum('...i,...j->...ij',A,A.conj())
 
+def decimation_factor(mli, slc):
+    #Resample to mli geometry
+    rdec = mli.range_pixel_spacing / slc.range_pixel_spacing
+    azdec = mli.GPRI_az_angle_step / slc.GPRI_az_angle_step
+    return [rdec, azdec]
+
+def process_interferograms(covariance):
+    coherence = normalize_covariance(cf.smooth(covariance, [5, 5, 1, 1]))
+    #Take only the upper triangle
+    triu_idx = np.triu_indices(coherence.shape[-1],k=1)
+    #Extract
+    triu_coh = coherence[:,:,triu_idx[0], triu_idx[1]]
+    print(triu_coh.shape)
+    #remove self ifgram
+    A_mean = np.average(np.angle(triu_coh), axis=(-1), weights=np.abs(triu_coh))
+    return A_mean
 
 # slice of stable_area
-stable_slice = (slice(0, 1600), slice(0, None))
+stable_slice = (slice(0, None,), slice(0, None))
 
 def cov(input, output, threads, config, params, wildcards):
-    plt.rcParams['font.size']=14
+    #load reference coordinate
+    with open(input.reference_coord) as infile:
+        ref_coord = json.load(infile)
+    print(ref_coord)
+    #Load mli
+    mli = gpf.gammaDataset(input.ref_mli_par, input.ref_mli)
     #Number of slcs
     n_slc = len(input.slc)
     # Import the stack of slcs
@@ -67,18 +92,29 @@ def cov(input, output, threads, config, params, wildcards):
     A = itab.to_incidence_matrix()
     #Compute slc covariance
     slc_covariance  = outer_product(slc_cube)
+    #Convert to block array
+    cov_block = bf.block_array(slc_covariance, [100,50], overlap=[10,10], trim_output=True)
     #Smooth
-    slc_covariance = cf.smooth(slc_covariance, [5,5,1,1], discard=True)
-    #Compute interferograms
-    ifgrams =
-    #transform into interferogram covariance
-    interferogram_covariance = cf.transform(A,slc_covariance,A.T)
-    #Convert to coherence
-    slc_coherence = normalize_covariance(slc_covariance)
-    interferogram_coherence = normalize_covariance(interferogram_covariance)
-    f, ax = plt.subplots(1,1)
-    ax.imshow(np.abs(interferogram_coherence[100,10]),vmin=0, vmax=1)
+    stacked_average = cov_block.process(process_interferograms)
+    #Upsample mli
+    mli_up = cf.complex_interp(mli, decimation_factor(mli, slcs[0]))
+    #Show
+    f, (a1,a2) = plt.subplots(2,1, sharex=True, sharey=True)
+    a1.imshow(mli)
+    # rgb, *rest = vf.dismph(slc_covariance_sm[:,:,10,2], coherence=True, mli=slc_covariance_sm[:,:,10,2])
+
+    a2.imshow(stacked_average)
     plt.show()
+    # #Compute interferograms
+    # ifgrams =
+    # #transform into interferogram covariance
+    # interferogram_covariance = cf.transform(A,slc_covariance,A.T)
+    # #Convert to coherence
+    # slc_coherence = normalize_covariance(slc_covariance)
+    # interferogram_coherence = normalize_covariance(interferogram_covariance)
+    # f, ax = plt.subplots(1,1)
+    # ax.imshow(np.abs(interferogram_coherence[100,10]),vmin=0, vmax=1)
+    # plt.show()
     # # Load one mli to display
     # #load reference
     # with open(input.reference_coord) as inputfile:
@@ -169,8 +205,8 @@ def cov(input, output, threads, config, params, wildcards):
     # cov_ax_1.set_yticklabels(names)
 
 
-    plt.show()
-    f.savefig(output['cov_image'])
+    # plt.show()
+    # f.savefig(output['cov_image'])
 
 
 cov(snakemake.input, snakemake.output, snakemake.threads, snakemake.config, snakemake.params,
