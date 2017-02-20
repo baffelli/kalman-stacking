@@ -38,6 +38,7 @@ def normalize_covariance(c):
 
 
 
+
 def covariance_with_increasing_distance(outer_matrix, center, r_min, r_max, dr, nr, n_points=100):
     cov = []
     for r in np.arange(r_min, r_max, nr):
@@ -54,56 +55,74 @@ def covariance_with_increasing_distance(outer_matrix, center, r_min, r_max, dr, 
 def outer_product(A):
     return np.einsum('...i,...j->...ij',A,A.conj())
 
+
 def decimation_factor(mli, slc):
     #Resample to mli geometry
-    rdec = mli.range_pixel_spacing / slc.range_pixel_spacing
+    rdec =  mli.range_pixel_spacing / slc.range_pixel_spacing
     azdec = mli.GPRI_az_angle_step / slc.GPRI_az_angle_step
     return [rdec, azdec]
 
 def process_interferograms(covariance):
-    coherence = normalize_covariance(cf.smooth(covariance, [5, 5, 1, 1]))
-    #Take only the upper triangle
-    triu_idx = np.triu_indices(coherence.shape[-1],k=1)
-    #Extract
-    triu_coh = coherence[:,:,triu_idx[0], triu_idx[1]]
-    print(triu_coh.shape)
+    coherence = normalize_covariance(np.mean(outer_product(covariance.data),axis=(0,1)))
+    l, w = np.linalg.eigh(coherence)
+    # #Take only the upper triangle
+    # triu_idx = np.triu_indices(coherence.shape[-1],k=1)
+    # #Extract
+    # triu_coh = coherence[:,:,triu_idx[0], triu_idx[1]]
     #remove self ifgram
-    A_mean = np.average(np.angle(triu_coh), axis=(-1), weights=np.abs(triu_coh))
-    return A_mean
+    # A_mean = np.average(np.abs(coherence), axis=(-1))
+    return coherence
+
 
 # slice of stable_area
-stable_slice = (slice(0, None,), slice(0, None))
+stable_slice = (slice(3000, 4000,), slice(0, None))
 
 def cov(input, output, threads, config, params, wildcards):
     #load reference coordinate
     with open(input.reference_coord) as infile:
         ref_coord = json.load(infile)
-    print(ref_coord)
+    ref_pt = ref_coord['features'][0]['properties']['radar_coordinates']
+    print(ref_pt)
+    #Load mask
+    mask = misc.imread(input.mask).T
     #Load mli
     mli = gpf.gammaDataset(input.ref_mli_par, input.ref_mli)
     #Number of slcs
     n_slc = len(input.slc)
     # Import the stack of slcs
     slcs = [gpf.gammaDataset(par, slc)[stable_slice] for par, slc in zip(input.slc_par, input.slc)]
+    #Oversamoling factor
+    osf = decimation_factor(mli, slcs[0])
+    ref_pt = [r * o - s.start for r, o, s in zip(ref_pt, osf, stable_slice)]
     #Convert it to cube of slcs by dstacking
     slc_cube = np.dstack(slcs)
+    #Reference slcs
+    slc_cube = slc_cube * slc_cube[ref_pt[0], ref_pt[1], :].conj()
     #Create incidence matrix
-    itab = utils.Itab(n_slc)
-    A = itab.to_incidence_matrix()
+    itab = utils.Itab(n_slc, step=1, stride=1)
+    #Compute interferograms
+    ifgrams = []
+    for master, slave, nr, active, stack_counter in itab:
+        ifgrams.append(slcs[master]*slcs[slave].conj())
     #Compute slc covariance
-    slc_covariance  = outer_product(slc_cube)
+    # slc_covariance  = outer_product(slc_cube)
     #Convert to block array
-    cov_block = bf.block_array(slc_covariance, [100,50], overlap=[10,10], trim_output=True)
+    cov_block = bf.block_array(slc_cube, [30,30], overlap=[0,0], trim_output=True)
     #Smooth
     stacked_average = cov_block.process(process_interferograms)
     #Upsample mli
-    mli_up = cf.complex_interp(mli, decimation_factor(mli, slcs[0]))
+    mli_up = cf.complex_interp(mli, decimation_factor(mli, slcs[0]))[stable_slice]
+    #Upsample mask
+    mask_up = cf.complex_interp(mask.astype(np.int), decimation_factor(mli, slcs[0]))[stable_slice]
     #Show
     f, (a1,a2) = plt.subplots(2,1, sharex=True, sharey=True)
-    a1.imshow(mli)
+    #show coherence and mask
+    mli_mask = np.ma.masked_where(np.abs(mask_up)==0, np.abs(mli_up)**0.2 )
+    a1.imshow(mli_mask)
+    a1.plot(*(ref_pt),marker='o')
     # rgb, *rest = vf.dismph(slc_covariance_sm[:,:,10,2], coherence=True, mli=slc_covariance_sm[:,:,10,2])
-
-    a2.imshow(stacked_average)
+    rgb, *rest = vf.dismph(stacked_average)
+    a2.imshow(np.abs(stacked_average),vmin=0,vmax=1)
     plt.show()
     # #Compute interferograms
     # ifgrams =

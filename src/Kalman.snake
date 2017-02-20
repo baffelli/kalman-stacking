@@ -365,7 +365,8 @@ rule unwrapped_covariance:
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',
         ref_mli = 'geo/' + config['geocoding']['table_name'] +'.mli',
         ref_mli_par = 'geo/' + config['geocoding']['table_name'] +'.mli.par',
-        mask = 'geo/bisgletscher_mask.bmp'
+        mask = 'geo/bisgletscher_mask.bmp',
+#        map = 'geo/pk25krel_latest_Clip.tif_fgc',
     script:
         'analysis/interferogram_covariance.py'
 
