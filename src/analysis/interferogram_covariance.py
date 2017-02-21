@@ -63,26 +63,26 @@ def decimation_factor(mli, slc):
     return [rdec, azdec]
 
 def process_interferograms(covariance):
-    coherence = normalize_covariance(np.mean(outer_product(covariance.data),axis=(0,1)))
+    coherence = cf.smooth(outer_product(covariance.data),[covariance.overlap[0], covariance.overlap[1],1,1,])
     l, w = np.linalg.eigh(coherence)
+    l = np.abs(l)
     # #Take only the upper triangle
     # triu_idx = np.triu_indices(coherence.shape[-1],k=1)
     # #Extract
     # triu_coh = coherence[:,:,triu_idx[0], triu_idx[1]]
     #remove self ifgram
     # A_mean = np.average(np.abs(coherence), axis=(-1))
-    return coherence
+    return (l.max() - l.min())/(l.max() + l.min())
 
 
 # slice of stable_area
-stable_slice = (slice(3000, 4000,), slice(0, None))
+stable_slice = (slice(2800, 4000,), slice(0, None))
 
 def cov(input, output, threads, config, params, wildcards):
     #load reference coordinate
     with open(input.reference_coord) as infile:
         ref_coord = json.load(infile)
     ref_pt = ref_coord['features'][0]['properties']['radar_coordinates']
-    print(ref_pt)
     #Load mask
     mask = misc.imread(input.mask).T
     #Load mli
@@ -97,7 +97,13 @@ def cov(input, output, threads, config, params, wildcards):
     #Convert it to cube of slcs by dstacking
     slc_cube = np.dstack(slcs)
     #Reference slcs
-    slc_cube = slc_cube * slc_cube[ref_pt[0], ref_pt[1], :].conj()
+    #Window around reference
+    print(ref_pt)
+    ref_wind = cf.window_idx(slc_cube,ref_pt,[10,10])
+    print(ref_wind)
+    #Average and subtract phase of reference
+    ref_phase = np.mean(np.angle(slc_cube[ref_wind[0], ref_wind[1], :]))
+    slc_cube = slc_cube * np.exp(-1j * ref_phase)
     #Create incidence matrix
     itab = utils.Itab(n_slc, step=1, stride=1)
     #Compute interferograms
@@ -118,11 +124,9 @@ def cov(input, output, threads, config, params, wildcards):
     f, (a1,a2) = plt.subplots(2,1, sharex=True, sharey=True)
     #show coherence and mask
     mli_mask = np.ma.masked_where(np.abs(mask_up)==0, np.abs(mli_up)**0.2 )
-    a1.imshow(mli_mask)
-    a1.plot(*(ref_pt),marker='o')
-    # rgb, *rest = vf.dismph(slc_covariance_sm[:,:,10,2], coherence=True, mli=slc_covariance_sm[:,:,10,2])
-    rgb, *rest = vf.dismph(stacked_average)
-    a2.imshow(np.abs(stacked_average),vmin=0,vmax=1)
+    a1.imshow(mli_mask, interpolation='none', cmap='gray')
+    a1.plot(*(ref_pt[::-1]),marker='o')
+    a2.imshow(np.log10(np.abs(stacked_average)),vmin=0,vmax=1)
     plt.show()
     # #Compute interferograms
     # ifgrams =

@@ -55,7 +55,7 @@ stack = utils.StackHelper(files)
 rule all:
     input:
 #        'geo/Dom.mli_gc.tif',
-        '../reports/figures/20150830_060000_20150830_070000_BBBl.png'
+        '../reports/figures/20150830_060000_20150830_120000_BBBl.png'
 
 
 
@@ -126,6 +126,8 @@ rule reference_coordinate:
     input:
         dem_par = 'geo/' + config['geocoding']['table_name'] + '.dem_seg.par',
         lut = 'geo/' + config['geocoding']['table_name'] + '.gpri_to_dem',
+        lut_inv = 'geo/' + config['geocoding']['table_name'] + '.dem_to_gpri',
+        ref_mli = 'geo/' + config['geocoding']['table_name'] + '.mli.par',
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.shp',
     output:
         reference_coord = 'geo/' + config['geocoding']['table_name'] + '.json',

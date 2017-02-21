@@ -8,7 +8,7 @@ def shapefile_to_json(inputs, outputs, threads, config, params, wildcards):
                          "features": []
                          }
     #Create mapping table
-    geocoding_table = gf.GeocodingTable(inputs.dem_par, inputs.lut)
+    geocoding_table = gf.GeocodingTable(inputs.dem_par, inputs.lut, inputs.ref_mli, inputs.lut_inv)
     #Load shapefile
     shapefile = ogr.Open(inputs.reference_coord)
     points = shapefile.GetLayer(0)
