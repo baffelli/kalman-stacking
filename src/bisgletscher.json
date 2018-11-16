@@ -1,7 +1,4 @@
 {
-    "style":    "/home/baffelli/PhD/trunk/Code/pyrat/pyrat/rcfiles/paper_rc.rc",
-	"project_name": "2015_GPRI_Dom",
-	"datetime":  "20160914_145059",
 	"range_compression":	{
 			"rmin":		50,
 			"rmax":		3000,
@@ -65,16 +62,13 @@
 		"filter_radius": 50
 	},
 	"unwrapping":		{
-		"coherence_threshold":	0.7
+		"coherence_threshold":	0.4
 	},
-	"calibration":			{
-			"reflector_index":		1,
-			"correct_HV":           "False"
-	},
+	"feature_name": "Bisgletscher",
 	"geocoding":			{
 			"scan_heading":	220,
 			"DEM"			: "geo/swissALTI3D_2016_Clip.dem",
-			"ref_mli_par"   : "mli/20150803_060749_AAAl.mli.par",
+			"ref_mli_par"   : "mli/20150830_060021_BBBl.mli.par",
 			"table_name" 	: "Dom",
 			"refine_table"	: true
 	}

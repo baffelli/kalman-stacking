@@ -12,3 +12,16 @@ rule untar_and_copy:
             shell("tar -xvf {input.tar} --directory ./slc_chan --strip=3 data/Dom/slc/{wildcards.datetime}_{wildcards.chan}.slc data/Dom/slc/{wildcards.datetime}_{wildcards.chan}.slc.par")
 
 
+#rule get_swissnames:
+#    output:
+#       names = 'geo/swissNAMES3D_LV95'
+#    run:
+#        shell('wget http://data.geo.admin.ch/ch.swisstopo.swissnames3d/data.zip')
+#        shell('unzip data.zip swissNAMES3D_LV95.zip -d geo')
+#
+#
+#rule get_DEM:
+#    output:
+#        dem = 'geo/swissALTI3D_2016_Clip.dem'
+#    input:
+#        dem = provider.remote("ifu-eo-srv-1.ethz.ch/local/working/2015_GPRI_Dom/raw/{datetime}.tar", static=True),
